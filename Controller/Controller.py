@@ -1,3 +1,6 @@
+# add button to quit and close connection
+# stop sending regularly (choose when to send)
+
 
 from msvcrt import getch
 import serial
@@ -42,14 +45,19 @@ def listenAndReceive(timeout=1):
 	return dataReceived, inputString
 
 def parseData(str):
-	inputArray = str.split('\t')
+	inputArray = str.split()
+	inputArrayNum = []
+	#print inputArray
 	try:
-		tm = int(inputArray[0])
-		inc = int(inputArray[1])
+		for i in inputArray:
+			#print inputArray[i]
+			#tmp = int(inputArray[i])
+			#print tmp
+			inputArrayNum.append(int(i))
 	except:
 		print "conversion failed"
 		return False
-	return True, tm, inc
+	return True, inputArrayNum
 
 
 while True:
@@ -57,9 +65,9 @@ while True:
 	(result,input) = listenAndReceive(1)
 	#print result, input
 	if result:
-		(result, tm, inc) = parseData(input)
+		(result, data) = parseData(input)
 	if result:
-		print tm, inc
+		print data
 
 
 # WHAT's THE FLOW?
