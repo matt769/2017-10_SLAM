@@ -26,18 +26,9 @@ int rangeReadings[numberOfReadings];
 void setup() {
   Serial.begin(115200); // to connect to computer
   Serial1.begin(115200); // to connect to BT module
-  randomSeed(analogRead(0));
-  Serial.println(F("0"));
   setupServo();
-  Serial.println(F("1"));
-//  setupRangeFinder();
-  rangeFinder.init();
-  rangeFinder.setTimeout(500);
-  // lower the return signal rate limit (default is 0.25 MCPS)
-  rangeFinder.setSignalRateLimit(0.1);
-  // increase laser pulse periods (defaults are 14 and 10 PCLKs)
-  rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
-  rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+  Wire.begin();
+  setupRangeFinder();
   Serial.println(F("Setup complete"));
 } // END LOOP
 
@@ -46,7 +37,7 @@ void loop() {
 
   checkForInput();
   showInput();
-  takeReadings();
+  takeRangeReadings();
 
   tm = millis();
   if (tm - lastSent > 1000) {
@@ -56,13 +47,6 @@ void loop() {
 } // END LOOP
 
 
-
-// this is just a placeholder
-void takeReadings() {
-  for (int i = 0; i < numberOfReadings; i++) {
-    rangeAngles[i] = random(100);
-  }
-}
 
 void takeRangeReadings() {
   for (byte i = 0; i < numberOfReadings; i++) {
