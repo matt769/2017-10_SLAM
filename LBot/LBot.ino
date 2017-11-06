@@ -25,7 +25,7 @@ int rangeReadings[numberOfReadings];
 
 void setup() {
   Serial.begin(115200); // to connect to computer
-  Serial1.begin(115200); // to connect to BT module
+  Serial3.begin(115200); // to connect to BT module
   setupServo();
   Wire.begin();
   setupRangeFinder();
@@ -59,8 +59,8 @@ void takeRangeReadings() {
 
 // only expecting single character input (at the moment)
 void checkForInput() {
-  if (Serial1.available()) {
-    input = Serial1.read();
+  if (Serial3.available()) {
+    input = Serial3.read();
     newInput = true;
   }
 }
@@ -85,13 +85,13 @@ void sendData() {
   }
   Serial.print('\n');
   // to BT module
-  Serial1.print(tm); Serial1.print('\t');
-  Serial1.print(inc); Serial1.print('\t');
+  Serial3.print(tm); Serial3.print('\t');
+  Serial3.print(inc); Serial3.print('\t');
   for (int i = 0; i < numberOfReadings; i++) {
-    Serial1.print(rangeReadings[i]);
-    if (i != (numberOfReadings - 1)) Serial1.print('\t');
+    Serial3.print(rangeReadings[i]);
+    if (i != (numberOfReadings - 1)) Serial3.print('\t');
   }
-  Serial1.print('\n');
+  Serial3.print('\n');
 
   inc += 1;
 }
