@@ -1,4 +1,12 @@
-// now change the data being sent to be more like an array of distance measurements
+
+
+#include <Wire.h>
+#include <VL53L0X.h>  // laser range finder
+#include <Servo.h>
+
+VL53L0X rangeFinder;
+Servo servo;
+const byte pinServo = 7;
 
 // for checking serial input
 bool newInput = false;
@@ -8,25 +16,64 @@ byte input;
 unsigned long lastSent = 0;
 unsigned long tm;
 
-
 // distance readings
-// assume there will be 19 (from 0 to 180 degrees)
-int readings[19];
-
-// this is just a placeholder
-void takeReadings() {
-  for (int i = 0; i < 19; i++) {
-    readings[i] = random(100);
-  }
-}
+// there will be 17 (from 10 to 170 degrees)
+const byte numberOfReadings = 17;
+int rangeAngles[numberOfReadings];
+int rangeReadings[numberOfReadings];
 
 
 void setup() {
   Serial.begin(115200); // to connect to computer
   Serial1.begin(115200); // to connect to BT module
   randomSeed(analogRead(0));
+  Serial.println(F("0"));
+  setupServo();
+  Serial.println(F("1"));
+//  setupRangeFinder();
+  rangeFinder.init();
+  rangeFinder.setTimeout(500);
+  // lower the return signal rate limit (default is 0.25 MCPS)
+  rangeFinder.setSignalRateLimit(0.1);
+  // increase laser pulse periods (defaults are 14 and 10 PCLKs)
+  rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+  Serial.println(F("Setup complete"));
+} // END LOOP
+
+
+void loop() {
+
+  checkForInput();
+  showInput();
+  takeReadings();
+
+  tm = millis();
+  if (tm - lastSent > 1000) {
+    sendData();
+    lastSent += 1000;
+  }
+} // END LOOP
+
+
+
+// this is just a placeholder
+void takeReadings() {
+  for (int i = 0; i < numberOfReadings; i++) {
+    rangeAngles[i] = random(100);
+  }
 }
 
+void takeRangeReadings() {
+  for (byte i = 0; i < numberOfReadings; i++) {
+    servo.write(rangeAngles[i]);
+    delay(50);
+    rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
+  }
+}
+
+
+// only expecting single character input (at the moment)
 void checkForInput() {
   if (Serial1.available()) {
     input = Serial1.read();
@@ -45,40 +92,42 @@ void showInput() {
 
 void sendData() {
   static int inc = 0;
+  // to serial monitor
   Serial.print(tm); Serial.print('\t');
   Serial.print(inc); Serial.print('\t');
-  for (int i = 0; i < 19; i++) {
-    Serial.print(readings[i]);
-    if (i!=18) Serial.print('\t');
+  for (int i = 0; i < numberOfReadings; i++) {
+    Serial.print(rangeReadings[i]);
+    if (i != (numberOfReadings - 1)) Serial.print('\t');
   }
   Serial.print('\n');
-
+  // to BT module
   Serial1.print(tm); Serial1.print('\t');
   Serial1.print(inc); Serial1.print('\t');
-  for (int i = 0; i < 19; i++) {
-    Serial1.print(readings[i]);
-    if (i!=18) Serial1.print('\t');
+  for (int i = 0; i < numberOfReadings; i++) {
+    Serial1.print(rangeReadings[i]);
+    if (i != (numberOfReadings - 1)) Serial1.print('\t');
   }
   Serial1.print('\n');
 
   inc += 1;
 }
 
-
-
-
-void loop() {
-
-  checkForInput();
-  showInput();
-  takeReadings();
-
-  tm = millis();
-  if (tm - lastSent > 2000) {
-    sendData();
-    lastSent += 2000;
+void setupServo() {
+  servo.write(10);
+  servo.attach(pinServo);
+  for (byte i = 0; i < numberOfReadings; i++) {
+    rangeAngles[i] = 10 + 10 * i;
+    //    Serial.println(rangeAngles[i]);
   }
 }
 
-
+void setupRangeFinder() {
+  rangeFinder.init();
+  rangeFinder.setTimeout(500);
+  // lower the return signal rate limit (default is 0.25 MCPS)
+  rangeFinder.setSignalRateLimit(0.1);
+  // increase laser pulse periods (defaults are 14 and 10 PCLKs)
+  rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
+}
 

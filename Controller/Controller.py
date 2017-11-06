@@ -1,5 +1,6 @@
 # add button to quit and close connection
 # stop sending regularly (choose when to send)
+# add multiple package types
 
 
 from msvcrt import getch
