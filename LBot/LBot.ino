@@ -235,10 +235,11 @@ void sendMotionData() {
   Serial3.print('1'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
-  Serial3.print((int)angleTurned); Serial3.print('\t');
-  Serial3.print((int)distanceMoved);
+  Serial3.print(angleTurned,5); Serial3.print('\t');
+  Serial3.print(distanceMoved);
   Serial3.print('\n');
   inc += 1;
+//  Serial.println(angleTurned,5);
 }
 
 
@@ -302,7 +303,7 @@ void setupRangeFinder() {
 
 void makeMovement(){
   // placeholder
-  angleTurned = (float)(random(100)-50);
+  angleTurned = (float)(random(100)-50)/50;
   distanceMoved = (float)random(50);
 }
 
