@@ -32,7 +32,7 @@ def send():
 	global lastSent
 	if time.clock() - lastSent > sendFreq:
 		#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
-		package = "2" + "\t" + str(random.randint(1,100)) + "\t" + str(random.randint(1,100)) + "\n"
+		package = "2" + "\t" + str(random.randint(-100,100)) + "\t" + str(random.randint(1,100)) + "\n"
 		ser.write(package)
 		lastSent += sendFreq
 

@@ -8,6 +8,8 @@ VL53L0X rangeFinder;
 Servo servo;
 const byte pinServo = 7;
 
+
+
 // for incoming comms
 bool newDataReceived = false;
 byte newCommandType;  // what type of data has been sent
@@ -51,6 +53,8 @@ int rangeReadings[numberOfReadings];
 
 
 void setup() {
+  randomSeed(analogRead(0));
+  
   Serial.begin(115200); // to connect to computer
   Serial3.begin(115200); // to connect to BT module
   setupServo();
@@ -66,23 +70,22 @@ void loop() {
   if (newDataReceived) parseData();
 
   if (moveRequestReceived) {
-    // add move
+    Serial.print(newCommandType); Serial.print('\t');
+    Serial.print(nextTurnAngle); Serial.print('\t');
+    Serial.print(nextMoveForward); Serial.print('\n');
+    makeMovement();
+    sendMotionData();
     takeRangeReadings();
-    sendData();
-    
-    // take action, for now just print
-//    Serial.print(newCommandType); Serial.print('\t');
-//    Serial.print(nextTurnAngle); Serial.print('\t');
-//    Serial.print(nextMoveForward); Serial.print('\n');
+    sendSensorData();
     moveRequestReceived = false;
   }
 
-//  tm = millis();
-//  if (tm - lastSent > 1000) {
-//    takeRangeReadings();
-//    sendData();
-//    lastSent += 1000;
-//  }
+  //  tm = millis();
+  //  if (tm - lastSent > 1000) {
+  //    takeRangeReadings();
+  //    sendData();
+  //    lastSent += 1000;
+  //  }
 } // END LOOP
 
 
@@ -243,16 +246,32 @@ void processCommandType3 (char* elementBuffer) {
 // FOR SENDING ///////////////////////////////////////
 //////////////////////////////////////////////////////
 
-void sendData() {
+void sendMotionData() {
   static int inc = 0;
+  tm = millis();
+  // to BT module
+  Serial3.print(tm); Serial3.print('\t');
+  Serial3.print(inc); Serial3.print('\t');
+  Serial3.print((int)angleTurned); Serial3.print('\t');
+  Serial3.print((int)distanceMoved);
+  Serial3.print('\n');
+  inc += 1;
+}
+
+
+void sendSensorData() {
+  static int inc = 0;
+  tm = millis();
+
   // to serial monitor
-  Serial.print(tm); Serial.print('\t');
-  Serial.print(inc); Serial.print('\t');
-  for (int i = 0; i < numberOfReadings; i++) {
-    Serial.print(rangeReadings[i]);
-    if (i != (numberOfReadings - 1)) Serial.print('\t');
-  }
-  Serial.print('\n');
+  //  Serial.print(tm); Serial.print('\t');
+  //  Serial.print(inc); Serial.print('\t');
+  //  for (int i = 0; i < numberOfReadings; i++) {
+  //    Serial.print(rangeReadings[i]);
+  //    if (i != (numberOfReadings - 1)) Serial.print('\t');
+  //  }
+  //  Serial.print('\n');
+
   // to BT module
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
@@ -291,4 +310,16 @@ void setupRangeFinder() {
   rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
   rangeFinder.setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
 }
+
+//////////////////////////////////////////////////////
+// FOR MOVEMENT //////////////////////////////////////
+//////////////////////////////////////////////////////
+
+
+void makeMovement(){
+  // placeholder
+  angleTurned = (float)(random(100)-50);
+  distanceMoved = (float)random(50);
+}
+
 
