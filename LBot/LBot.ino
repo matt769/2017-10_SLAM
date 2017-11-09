@@ -223,24 +223,6 @@ void processCommandType3 (char* elementBuffer) {
 }
 
 
-// BELOW WILL BE REMOVED
-
-// only expecting single character input (at the moment)
-//void checkForInput() {
-//  if (Serial3.available()) {
-//    input = Serial3.read();
-//    newInput = true;
-//  }
-//}
-//
-//void showInput() {
-//  if (newInput) {
-//    Serial.print("Data received: ");
-//    Serial.print(input);
-//    Serial.print('\n');
-//    newInput = false;
-//  }
-//}
 
 //////////////////////////////////////////////////////
 // FOR SENDING ///////////////////////////////////////
@@ -250,6 +232,7 @@ void sendMotionData() {
   static int inc = 0;
   tm = millis();
   // to BT module
+  Serial3.print('1'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
   Serial3.print((int)angleTurned); Serial3.print('\t');
@@ -273,6 +256,7 @@ void sendSensorData() {
   //  Serial.print('\n');
 
   // to BT module
+  Serial3.print('2'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
   for (int i = 0; i < numberOfReadings; i++) {
