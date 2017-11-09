@@ -8,9 +8,36 @@ VL53L0X rangeFinder;
 Servo servo;
 const byte pinServo = 7;
 
+// for incoming comms
+bool newDataReceived = false;
+byte newCommandType;  // what type of data has been sent
+//  expecting 1, 2, 3
+const char charArrayTerminator = '\0';
+const byte rxBufferSize = 15; // longest expected atm is 11 (+string termination char)
+static char rxBuffer[rxBufferSize];
+
+// for outgoing comms
+const byte MOTION_PACKET_ID = 1;
+const byte SENSOR_PACKET_ID = 2;
+const byte CONTROL_PACKET_ID = 3;
+
+// for movement
+float nextTurnAngle, nextMoveForward;
+float defaultTurnAngle = 0.0;   // in degrees
+float defaultMoveForward = 200.0; // in millimeters
+bool moveRequestReceived = false; // set to true after receiving a command to move // set to false after movement is done
+
+// for recording movement
+const float wheelBase = 20; // in millimeters // placeholder
+const float wheelCircumference = 80; // in millimeters // placeholder
+float angleTurned;
+float distanceMoved;
+const int encoderTicksPerRevolution = 100;  // placeholder
+
+
 // for checking serial input
-bool newInput = false;
-byte input;
+//bool newInput = false;
+//byte input;
 
 // for sending output
 unsigned long lastSent = 0;
@@ -35,15 +62,27 @@ void setup() {
 
 void loop() {
 
-  checkForInput();
-  showInput();
-  takeRangeReadings();
+  readSerialToBuffer();
+  if (newDataReceived) parseData();
 
-  tm = millis();
-  if (tm - lastSent > 1000) {
+  if (moveRequestReceived) {
+    // add move
+    takeRangeReadings();
     sendData();
-    lastSent += 1000;
+    
+    // take action, for now just print
+//    Serial.print(newCommandType); Serial.print('\t');
+//    Serial.print(nextTurnAngle); Serial.print('\t');
+//    Serial.print(nextMoveForward); Serial.print('\n');
+    moveRequestReceived = false;
   }
+
+//  tm = millis();
+//  if (tm - lastSent > 1000) {
+//    takeRangeReadings();
+//    sendData();
+//    lastSent += 1000;
+//  }
 } // END LOOP
 
 
@@ -56,23 +95,153 @@ void takeRangeReadings() {
   }
 }
 
+//////////////////////////////////////////////////////
+// FOR RECEIVING /////////////////////////////////////
+//////////////////////////////////////////////////////
+
+void readSerialToBuffer() {
+  const char endMarker = '\n';
+  static byte idx = 0;
+  static bool receivingInProgress = false;  // indicate if we are midway through receiving something
+  char inputChar;
+  // read anything that's available from the BT module
+  if (Serial3.available() > 0) {
+    inputChar = Serial3.read();
+    //    Serial.println(inputChar);
+  }
+  else return;  // ** NOTE RETURN **
+  // if this is the beginning of a new transmission
+  if (!receivingInProgress) {
+    receivingInProgress = true; // indicate that we are now part way through a transmission
+  }
+  if (inputChar != endMarker) {
+    rxBuffer[idx] = inputChar;
+    idx++;
+    if (idx >= rxBufferSize) {  // just in case we have overrun the buffer
+      idx = rxBufferSize - 1;
+    }
+  }
+  else {
+    rxBuffer[idx] = charArrayTerminator; // terminate the string
+    idx = 0;
+    newDataReceived = true;
+    receivingInProgress = false;
+  }
+}
+
+
+// general function that will perform basic sense check on the data
+// determine what command type it is, and send to a command specific parser
+// should this also split into parts? prob yes
+void parseData() {
+  // ignore command type for a moment
+  const byte elementBufferSize = 6;
+  const char delimiter = '\t';
+  char elementBuffer[elementBufferSize];
+  byte elementIdx = 0;
+  //  bool elementComplete = false;
+  int output;
+  bool firstElement = true;
+  for (byte rxIdx = 0; rxIdx < rxBufferSize; rxIdx++) {
+    if (rxBuffer[rxIdx] == delimiter || rxBuffer[rxIdx] == charArrayTerminator) {
+      // element complete, add terminator and convert to number
+      elementBuffer[elementIdx] = charArrayTerminator;
+      //if this was the first element then save as newCommandType
+      if (firstElement) {
+        newCommandType = (byte)atoi(elementBuffer);
+        firstElement = false;
+      }
+      // if not the first element, then send to the command specific parser
+      else {
+        switch (newCommandType) {
+          case 1: // standard input
+            processCommandType1(elementBuffer);
+            break;
+          case 2: // standard input
+            processCommandType2(elementBuffer);
+            break;
+          case 3: // standard input
+            processCommandType3(elementBuffer);
+            break;
+        }
+      }
+      // if the end of data has been reached then parsing is complete
+      if (rxBuffer[rxIdx] == charArrayTerminator) {
+        newDataReceived = false;
+        return;
+      }
+      // if not then reset the element buffer index for the next element
+      elementIdx = 0;
+    }
+    else {  // valid data, extract to element buffer
+      elementBuffer[elementIdx] = rxBuffer[rxIdx];
+      elementIdx++;
+    }
+  }
+}
+
+
+// THERE IS NO ERROR CHECKING I.E. DO I GET THE RIGHT NUMBER OF NUMBERS?
+void processCommandType1 (char* element) {
+  // standard command to move a set distance and read the sensors
+  // this will only be called once
+  // at the moment, not even bothering to check the value of the command
+  //  Serial.println("xxx");
+  nextTurnAngle = defaultTurnAngle;
+  nextMoveForward = defaultMoveForward;
+  moveRequestReceived = true;
+}
+
+// THERE IS NO ERROR CHECKING I.E. DO I GET THE RIGHT NUMBER OF NUMBERS?
+void processCommandType2 (char* element) {
+  // this will be called multiple times
+  // required turn angle, required distance forward
+  static byte variableCounter = 0;
+  const byte variableMax = 2; // expecting a maximum of 2 values
+  //  Serial.println("I am here");
+  switch (variableCounter) {
+    case 0: // first variable, turn angle
+      nextTurnAngle = atof(element);
+      variableCounter++;
+      //      Serial.println(nextTurnAngle);
+      break;
+    case 1: // first variable, move distance
+      nextMoveForward = atof(element);
+      //      Serial.println(nextMoveForward);
+      variableCounter = 0;
+      moveRequestReceived = true; // that's everything done, so flag that we have a new move request ready to act upon
+      break;
+  }
+}
+
+// THERE IS NO ERROR CHECKING I.E. DO I GET THE RIGHT NUMBER OF NUMBERS?
+void processCommandType3 (char* elementBuffer) {
+  // not yet defined
+}
+
+
+// BELOW WILL BE REMOVED
 
 // only expecting single character input (at the moment)
-void checkForInput() {
-  if (Serial3.available()) {
-    input = Serial3.read();
-    newInput = true;
-  }
-}
+//void checkForInput() {
+//  if (Serial3.available()) {
+//    input = Serial3.read();
+//    newInput = true;
+//  }
+//}
+//
+//void showInput() {
+//  if (newInput) {
+//    Serial.print("Data received: ");
+//    Serial.print(input);
+//    Serial.print('\n');
+//    newInput = false;
+//  }
+//}
 
-void showInput() {
-  if (newInput) {
-    Serial.print("Data received: ");
-    Serial.print(input);
-    Serial.print('\n');
-    newInput = false;
-  }
-}
+//////////////////////////////////////////////////////
+// FOR SENDING ///////////////////////////////////////
+//////////////////////////////////////////////////////
 
 void sendData() {
   static int inc = 0;
@@ -96,6 +265,10 @@ void sendData() {
   inc += 1;
 }
 
+//////////////////////////////////////////////////////
+// SERVO /////////////////////////////////////////////
+//////////////////////////////////////////////////////
+
 void setupServo() {
   servo.write(10);
   servo.attach(pinServo);
@@ -104,6 +277,10 @@ void setupServo() {
     //    Serial.println(rangeAngles[i]);
   }
 }
+
+//////////////////////////////////////////////////////
+// RANGE FINDER //////////////////////////////////////
+//////////////////////////////////////////////////////
 
 void setupRangeFinder() {
   rangeFinder.init();

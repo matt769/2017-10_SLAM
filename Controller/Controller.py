@@ -6,6 +6,7 @@
 from msvcrt import getch
 import serial
 import time
+import random
 
 port = 'COM6'
 baudrate = 115200
@@ -30,7 +31,9 @@ sendFreq = 1	# in seconds
 def send():
 	global lastSent
 	if time.clock() - lastSent > sendFreq:
-		ser.write('x')
+		#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
+		package = "2" + "\t" + str(random.randint(1,100)) + "\t" + str(random.randint(1,100)) + "\n"
+		ser.write(package)
 		lastSent += sendFreq
 
 # for receiving
