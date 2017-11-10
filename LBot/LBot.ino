@@ -95,6 +95,7 @@ void takeRangeReadings() {
     servo.write(rangeAngles[i]);
     delay(50);
     rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
+    if(rangeReadings[i]>2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
   }
 }
 
@@ -303,8 +304,10 @@ void setupRangeFinder() {
 
 void makeMovement(){
   // placeholder
-  angleTurned = (float)(random(100)-50)/50;
-  distanceMoved = (float)random(50);
+//  angleTurned = (float)(random(100)-50)/50;
+//  distanceMoved = (float)random(50);
+  angleTurned = 1.5708;
+  distanceMoved = 200;
 }
 
 

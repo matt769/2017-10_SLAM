@@ -13,6 +13,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 port = 'COM6'
 baudrate = 115200
 timeoutNum = 0.2
@@ -40,7 +41,7 @@ globalPosition = (0.0, 0.0)
 globalHeading = 0.0
 angleTurned = 0.0
 distanceMoved = 0.0
-readingAnglesDegrees = [10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170]
+readingAnglesDegrees = [-80,-70,-60,-50,-40,-30,-20,-10,0,10,20,30,40,50,60,70,80]
 readingAnglesRadians = [x*math.pi/180 for x in readingAnglesDegrees]
 sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
 
@@ -48,6 +49,9 @@ sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
 MOTION = 1
 SENSOR = 2
 CONTROL = 3
+
+# charting interactive mode on
+plt.ion()
 
 ######################################
 # FUNCTIONS# #########################
@@ -123,44 +127,71 @@ def parseControlPackage(data):
 	
 
 def updatePositionAfterMovement(angleTurned, distanceMoved):
-	heading = (globalHeading + angleTurned) % 360
-	x = globalPosition[0] + distanceMoved * math.sin(globalHeading)
-	y = globalPosition[1] + distanceMoved * math.cos(globalHeading)
-	return x, y, heading
+	heading = (globalHeading + angleTurned) % (math.pi * 2)
+	x = globalPosition[0] + distanceMoved * math.sin(heading)
+	y = globalPosition[1] + distanceMoved * math.cos(heading)
+	return (x, y), heading
 
 
 def calculateSensorReadingPositions(angles, distances):
 	readingPositions = []
-	for idx in distances:#
+	for idx in range(len(distances)):#
 		# add sense check
-		x = globalPosition[0] + distances[idx] * math.sin(angles[idx])
-		y = globalPosition[1] + distances[idx] * math.cos(angles[idx])
+		if distances[idx] == 0.0: continue
+		positionHeading = (globalHeading + angles[idx]) % (math.pi * 2)
+		x = globalPosition[0] + distances[idx] * math.sin(positionHeading)
+		y = globalPosition[1] + distances[idx] * math.cos(positionHeading)
+		#print x,y,positionHeading
 		readingPositions.append((x,y))
+	#print readingPositions
 	return readingPositions
+
+# should possibly put them in this form in the first place
+def convertReadingsForPlot(positions):
+	xPositions = []
+	yPositions = []
+	for x,y in positions:
+		xPositions.append(x)
+		yPositions.append(y)
+	return xPositions, yPositions
+
 
 def updatePositionAfterSense():
 	# this will be one of the final functions to implement
 	return False
 
 
+
+
+
+
 ######################################
 # MAIN START #########################
 ######################################
+print "Starting position:", globalPosition, globalHeading
 while True:
 	send()
 	(result,input) = listenAndReceive(1)
 	#print result, input
+	
 	if result:
 		packetType = splitAndRoute(input)
 		#print packetType
 		if packetType == MOTION:
 			print "Received motion data:",angleTurned, distanceMoved
+			globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, distanceMoved)
+			print "New position:", globalPosition, globalHeading
 		elif packetType == SENSOR:
 			print "Received sensor data:",sensorReadings
+			x, y = convertReadingsForPlot(calculateSensorReadingPositions(readingAnglesRadians, sensorReadings))
+			plt.scatter(x, y)
+			plt.pause(0.001)
+			
 		elif packetType == CONTROL:
-			print "Packet not yet defined. YOu shouldn't be here."
+			print "Packet not yet defined. You shouldn't be here."
 		else:
 			print "Data receipt failure"
+
 
 
 
