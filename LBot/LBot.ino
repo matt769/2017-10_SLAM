@@ -3,12 +3,11 @@
 #include <Wire.h>
 #include <VL53L0X.h>  // laser range finder
 #include <Servo.h>
+#include <PID_v1.h>
 
 VL53L0X rangeFinder;
 Servo servo;
 const byte pinServo = 7;
-
-
 
 // for incoming comms
 bool newDataReceived = false;
@@ -30,11 +29,17 @@ float defaultMoveForward = 200.0; // in millimeters
 bool moveRequestReceived = false; // set to true after receiving a command to move // set to false after movement is done
 
 // for recording movement
-const float wheelBase = 20; // in millimeters // placeholder
-const float wheelCircumference = 80; // in millimeters // placeholder
+const float wheelBase = 85.0; // in millimeters // placeholder
+const float wheelCircumference = 32.0 * PI; // in millimeters // placeholder
 float angleTurned;
 float distanceMoved;
-const int encoderTicksPerRevolution = 100;  // placeholder
+const int encoderTicksPerRevolution = 3 * 50;  // ticks per motor shaft turn * gear ratio
+const float distancePerTick = wheelCircumference / (float)encoderTicksPerRevolution;
+long distanceTargetTicks = 0;  // after receiving a distance to travel, convert to encoder ticks for quicker calculation
+long turnTargetTicks = 0;
+float turningCircleCircumference = wheelBase * PI;
+bool inMotionForward = false;
+bool inMotionTurning = false;
 
 // for motors
 const byte pinLeftMotorDirection = 4;
@@ -45,9 +50,15 @@ const byte pinLeftEncoderA = 2;
 const byte pinLeftEncoderB = 8;
 const byte pinRightEncoderA = 3;
 const byte pinRightEncoderB = 9;
-volatile int leftEncoderCounter = 0;
-volatile int rightEncoderCounter = 0;
-byte baseSpeed = 150;
+volatile long leftEncoderCounter = 0;
+volatile long rightEncoderCounter = 0;
+byte baseSpeed = 200;
+
+float leftSpeedSetpoint, leftSpeedActual, leftPWMOutput, rightSpeedSetpoint, rightSpeedActual, rightPWMOutput;
+float Kp = 1, Ki = 0, Kd = 0;
+PID leftSpeedPID(&leftSpeedActual, &leftPWMOutput, &leftSpeedSetpoint, Kp, Ki, Kd, DIRECT);
+PID rightSpeedPID(&rightSpeedActual, &rightPWMOutput, &rightSpeedSetpoint, Kp, Ki, Kd, DIRECT);
+unsigned long speedCalcLast;
 
 // for sending output
 unsigned long lastSent = 0;
@@ -60,8 +71,6 @@ int rangeAngles[numberOfReadings];
 int rangeReadings[numberOfReadings];
 
 
-
-
 void setup() {
   randomSeed(analogRead(0));
 
@@ -71,30 +80,83 @@ void setup() {
   Wire.begin();
   setupRangeFinder();
   setupMotorsAndEncoders();
+
+  leftSpeedPID.SetSampleTime(100);
+  rightSpeedPID.SetSampleTime(100);
+  leftSpeedPID.SetMode(MANUAL);
+  rightSpeedPID.SetMode(MANUAL);
+  // PID limits are 0 to 255 by default
+
   Serial.println(F("Setup complete"));
 } // END LOOP
 
 
 void loop() {
 
-//  readSerialToBuffer();
-//  if (newDataReceived) parseData();
-//
-//  if (moveRequestReceived) {
-//    Serial.print(newCommandType); Serial.print('\t');
-//    Serial.print(nextTurnAngle); Serial.print('\t');
-//    Serial.print(nextMoveForward); Serial.print('\n');
-//    makeMovement();
-//    sendMotionData();
-//    takeRangeReadings();
-//    sendSensorData();
-//    moveRequestReceived = false;
-//  }
+  //  readSerialToBuffer();
+  //  if (newDataReceived) parseData();
+  //
+  //  if (moveRequestReceived) {
+  //    Serial.print(newCommandType); Serial.print('\t');
+  //    Serial.print(nextTurnAngle); Serial.print('\t');
+  //    Serial.print(nextMoveForward); Serial.print('\n');
+  //    makeMovement();
+  //    sendMotionData();
+  //    takeRangeReadings();
+  //    sendSensorData();
+  //    moveRequestReceived = false;
+  //  }
+
+
+  //  distanceTargetTicks = 500;
+  ////  if (moveRequestReceived) {
+  //  if (!inMotionForward) {
+  //    Serial.print(newCommandType); Serial.print('\t');
+  //    Serial.print(nextTurnAngle); Serial.print('\t');
+  //    Serial.print(nextMoveForward); Serial.print('\n');
+  //    forward();
+  //    inMotionForward = true;
+  //    moveRequestReceived = false;
+  //  }
+  //  if (inMotionForward && rightEncoderCounter > distanceTargetTicks) {
+  //    stopMove();
+  //    inMotionForward = false;
+  //    calculateDistance();
+  //    Serial.println(distanceMoved);
+  //    sendMotionData();
+  //    takeRangeReadings();
+  //    sendSensorData();
+  //  }
+
+
+  leftSpeedSetpoint = 150.0;  // speed is in encoder ticks per second
+  rightSpeedSetpoint = 150.0;
+  leftSpeedPID.SetMode(AUTOMATIC);
+  rightSpeedPID.SetMode(AUTOMATIC);
+  forward();
+  speedCalcLast = millis();
+  while (1) {
+    calculateSpeed();
+    leftSpeedPID.Compute();
+    bool tmp = rightSpeedPID.Compute();
+    if(tmp){
+      Serial.print(leftPWMOutput); Serial.print('\t');
+      Serial.print(rightPWMOutput); Serial.print('\n');
+    }
+
+    forward();  // to update the motors
+
+  }
+
+
+
 
   // testing by moving manually
-  Serial.print(leftEncoderCounter);Serial.print('\t');
-  Serial.print(rightEncoderCounter);Serial.print('\n');
-  delay(1000);
+  //  calculateDistance();
+  //  Serial.print(leftEncoderCounter);Serial.print('\t');
+  //  Serial.print(rightEncoderCounter);Serial.print('\t');
+  //  Serial.print(distanceMoved);Serial.print('\n');
+  //  delay(1000);
 
 
 } // END LOOP
@@ -108,6 +170,7 @@ void takeRangeReadings() {
     rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
     if (rangeReadings[i] > 2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
   }
+  servo.write(rangeAngles[0]);  // ready for next time
 }
 
 //////////////////////////////////////////////////////
@@ -330,7 +393,7 @@ void setupMotorsAndEncoders() {
 }
 
 void countLeftEncoder() {
-//  leftEncoderCounter++;
+  //  leftEncoderCounter++;
   byte dir = bitRead(PINH, 5);   // pin 8 is port H.5 on the Mega
   if (dir == 1) {
     leftEncoderCounter++;
@@ -341,7 +404,7 @@ void countLeftEncoder() {
 }
 
 void countRightEncoder() {
-//  rightEncoderCounter++;
+  //  rightEncoderCounter++;
   byte dir = bitRead(PINH, 6);   // pin 9 is port H.6 on the Mega
   if (dir == 1) {
     rightEncoderCounter++;
@@ -359,42 +422,86 @@ void makeMovement() {
   distanceMoved = 200;
 }
 
-void makeMovementNew() {
-//  turn();
-//  calculateTurn();
-  forward();
-  // now check progress and stop when done
-  // do I want to check all the time or periodically?
-  delay(2000);
-  stopMove();
-//  calculateDistance();
+//void startMovement() {
+//  forward();
+//}
+
+
+//bool checkIfTargetReached(){
+//  if(leftEncoderCounter > distanceTargetTicks)
+//}
+
+
+
+
+void turn() {
+
 }
 
-void turn(){
-  
-}
-
-void forward(){
+void forward() {
+  digitalWrite(pinLeftMotorDirection, HIGH);
+  digitalWrite(pinLeftMotorPWM, leftPWMOutput);
   digitalWrite(pinRightMotorDirection, HIGH);
-  digitalWrite(pinRightMotorPWM, baseSpeed);
-  digitalWrite(pinRightMotorDirection, HIGH);
-  digitalWrite(pinRightMotorPWM, baseSpeed);
+  digitalWrite(pinRightMotorPWM, rightPWMOutput);
 }
 
-void stopMove(){
-  digitalWrite(pinRightMotorPWM, 0);
+void stopMove() {
+  digitalWrite(pinLeftMotorPWM, 0);
   digitalWrite(pinRightMotorPWM, 0);
 }
 
 void calculateTurn() {
   angleTurned = 1.5708;
-  distanceMoved = 200;
-  
+
 }
+
+void setTargets() {
+  distanceTargetTicks = long((float)nextMoveForward / distancePerTick);
+  // target for the LEFT WHEEL
+  // this is the distance the wheel will need to travel (assuming right wheel move oppositely) to acheive the desired angle
+  float wheelDistanceToTravel = (nextTurnAngle / (2 * PI) ) * turningCircleCircumference;
+  turnTargetTicks = (long)(wheelDistanceToTravel / distancePerTick);
+}
+
+
 
 void calculateDistance() {
-  angleTurned = 1.5708;
-  distanceMoved = 200;
-  
+  // copy encoder values and reset
+  // turn off interupts while doing so (the robot should not be moving at this point)
+  long leftEncoderCounterCopy;
+  long rightEncoderCounterCopy;
+  cli();
+  leftEncoderCounterCopy = leftEncoderCounter;
+  rightEncoderCounterCopy = rightEncoderCounter;
+  leftEncoderCounter = 0;
+  rightEncoderCounter = 0;
+  sei();
+  Serial.print(leftEncoderCounterCopy); Serial.print('\t');
+  Serial.print(rightEncoderCounterCopy); Serial.print('\t');
+  // for the moment, assume that it has travelled in perfectly straight line
+  // in which case the encoder counts will be the same
+  distanceMoved = (float)rightEncoderCounterCopy * distancePerTick;
 }
 
+
+void calculateSpeed() {
+  unsigned long interval = millis() - speedCalcLast;
+  if (interval >= 100) {
+    // copy encoder values and reset
+    long leftEncoderCounterCopy;
+    long rightEncoderCounterCopy;
+    cli();
+    leftEncoderCounterCopy = leftEncoderCounter;
+    rightEncoderCounterCopy = rightEncoderCounter;
+    leftEncoderCounter = 0;
+    rightEncoderCounter = 0;
+    sei();
+    leftSpeedActual = leftEncoderCounterCopy / (float)interval;
+    rightSpeedActual = rightEncoderCounterCopy / (float)interval;
+    Serial.print(leftEncoderCounterCopy); Serial.print('\t');
+    Serial.print(rightEncoderCounterCopy); Serial.print('\t');
+    speedCalcLast += 100;
+    Serial.print(leftSpeedActual); Serial.print('\t');
+    Serial.print(rightSpeedActual); Serial.print('\n');
+  }
+}
