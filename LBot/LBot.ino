@@ -36,10 +36,18 @@ float angleTurned;
 float distanceMoved;
 const int encoderTicksPerRevolution = 100;  // placeholder
 
-
-// for checking serial input
-//bool newInput = false;
-//byte input;
+// for motors
+const byte pinLeftMotorDirection = 4;
+const byte pinRightMotorDirection = 5;
+const byte pinLeftMotorPWM = 10;
+const byte pinRightMotorPWM = 11;
+const byte pinLeftEncoderA = 2;
+const byte pinLeftEncoderB = 8;
+const byte pinRightEncoderA = 3;
+const byte pinRightEncoderB = 9;
+volatile int leftEncoderCounter = 0;
+volatile int rightEncoderCounter = 0;
+byte baseSpeed = 150;
 
 // for sending output
 unsigned long lastSent = 0;
@@ -52,40 +60,43 @@ int rangeAngles[numberOfReadings];
 int rangeReadings[numberOfReadings];
 
 
+
+
 void setup() {
   randomSeed(analogRead(0));
-  
+
   Serial.begin(115200); // to connect to computer
   Serial3.begin(115200); // to connect to BT module
   setupServo();
   Wire.begin();
   setupRangeFinder();
+  setupMotorsAndEncoders();
   Serial.println(F("Setup complete"));
 } // END LOOP
 
 
 void loop() {
 
-  readSerialToBuffer();
-  if (newDataReceived) parseData();
+//  readSerialToBuffer();
+//  if (newDataReceived) parseData();
+//
+//  if (moveRequestReceived) {
+//    Serial.print(newCommandType); Serial.print('\t');
+//    Serial.print(nextTurnAngle); Serial.print('\t');
+//    Serial.print(nextMoveForward); Serial.print('\n');
+//    makeMovement();
+//    sendMotionData();
+//    takeRangeReadings();
+//    sendSensorData();
+//    moveRequestReceived = false;
+//  }
 
-  if (moveRequestReceived) {
-    Serial.print(newCommandType); Serial.print('\t');
-    Serial.print(nextTurnAngle); Serial.print('\t');
-    Serial.print(nextMoveForward); Serial.print('\n');
-    makeMovement();
-    sendMotionData();
-    takeRangeReadings();
-    sendSensorData();
-    moveRequestReceived = false;
-  }
+  // testing by moving manually
+  Serial.print(leftEncoderCounter);Serial.print('\t');
+  Serial.print(rightEncoderCounter);Serial.print('\n');
+  delay(1000);
 
-  //  tm = millis();
-  //  if (tm - lastSent > 1000) {
-  //    takeRangeReadings();
-  //    sendData();
-  //    lastSent += 1000;
-  //  }
+
 } // END LOOP
 
 
@@ -95,7 +106,7 @@ void takeRangeReadings() {
     servo.write(rangeAngles[i]);
     delay(50);
     rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
-    if(rangeReadings[i]>2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
+    if (rangeReadings[i] > 2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
   }
 }
 
@@ -236,11 +247,11 @@ void sendMotionData() {
   Serial3.print('1'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
-  Serial3.print(angleTurned,5); Serial3.print('\t');
+  Serial3.print(angleTurned, 5); Serial3.print('\t');
   Serial3.print(distanceMoved);
   Serial3.print('\n');
   inc += 1;
-//  Serial.println(angleTurned,5);
+  //  Serial.println(angleTurned,5);
 }
 
 
@@ -301,13 +312,89 @@ void setupRangeFinder() {
 // FOR MOVEMENT //////////////////////////////////////
 //////////////////////////////////////////////////////
 
+void setupMotorsAndEncoders() {
+  pinMode(pinLeftMotorDirection, OUTPUT);
+  pinMode(pinLeftMotorPWM, OUTPUT);
+  pinMode(pinLeftMotorDirection, OUTPUT);
+  pinMode(pinLeftMotorPWM, OUTPUT);
+  digitalWrite(pinRightMotorDirection, LOW);
+  digitalWrite(pinRightMotorPWM, LOW);
+  digitalWrite(pinRightMotorDirection, LOW);
+  digitalWrite(pinRightMotorPWM, LOW);
+  pinMode(pinLeftEncoderA, INPUT);
+  pinMode(pinLeftEncoderB, INPUT);
+  pinMode(pinRightEncoderA, INPUT);
+  pinMode(pinRightEncoderB, INPUT);
+  attachInterrupt(digitalPinToInterrupt(pinLeftEncoderA), countLeftEncoder, RISING);
+  attachInterrupt(digitalPinToInterrupt(pinRightEncoderA), countRightEncoder, RISING);
+}
 
-void makeMovement(){
+void countLeftEncoder() {
+//  leftEncoderCounter++;
+  byte dir = bitRead(PINH, 5);   // pin 8 is port H.5 on the Mega
+  if (dir == 1) {
+    leftEncoderCounter++;
+  }
+  else {
+    leftEncoderCounter--;
+  }
+}
+
+void countRightEncoder() {
+//  rightEncoderCounter++;
+  byte dir = bitRead(PINH, 6);   // pin 9 is port H.6 on the Mega
+  if (dir == 1) {
+    rightEncoderCounter++;
+  }
+  else {
+    rightEncoderCounter--;
+  }
+}
+
+void makeMovement() {
   // placeholder
-//  angleTurned = (float)(random(100)-50)/50;
-//  distanceMoved = (float)random(50);
+  //  angleTurned = (float)(random(100)-50)/50;
+  //  distanceMoved = (float)random(50);
   angleTurned = 1.5708;
   distanceMoved = 200;
 }
 
+void makeMovementNew() {
+//  turn();
+//  calculateTurn();
+  forward();
+  // now check progress and stop when done
+  // do I want to check all the time or periodically?
+  delay(2000);
+  stopMove();
+//  calculateDistance();
+}
+
+void turn(){
+  
+}
+
+void forward(){
+  digitalWrite(pinRightMotorDirection, HIGH);
+  digitalWrite(pinRightMotorPWM, baseSpeed);
+  digitalWrite(pinRightMotorDirection, HIGH);
+  digitalWrite(pinRightMotorPWM, baseSpeed);
+}
+
+void stopMove(){
+  digitalWrite(pinRightMotorPWM, 0);
+  digitalWrite(pinRightMotorPWM, 0);
+}
+
+void calculateTurn() {
+  angleTurned = 1.5708;
+  distanceMoved = 200;
+  
+}
+
+void calculateDistance() {
+  angleTurned = 1.5708;
+  distanceMoved = 200;
+  
+}
 
