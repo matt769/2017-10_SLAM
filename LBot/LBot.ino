@@ -57,11 +57,11 @@ byte leftPWM; // final PWM value
 byte rightPWM;
 byte leftPWMBase;
 byte rightPWMBase;
-float baseTurnSpeed = 0.8;
+float baseTurnSpeed = 1.0;
 float baseForwardSpeed = 1.0;
 const byte MOTOR_FORWARD = 1;
 const byte MOTOR_BACKWARD = 2;
-
+volatile int counter = 0;
 
 
 float leftSpeedSetpoint, leftSpeedActual, leftPWMOutput, rightSpeedSetpoint, rightSpeedActual, rightPWMOutput;
@@ -175,7 +175,7 @@ void loop() {
   //  }
 
   // TESTING TURN
-  nextTurnAngle = 2 * PI;  // radians
+  nextTurnAngle = -6 * PI;  // radians
   setTargets();
   Serial.print(turnTargetTicks); Serial.print('\n');
   leftSpeedPID.SetMode(AUTOMATIC);
@@ -196,7 +196,7 @@ void loop() {
     Serial.print(rightPWMOutput); Serial.print('\t');
     Serial.print(leftPWM); Serial.print('\t');
     Serial.print(rightPWM); Serial.print('\n');
-    if (leftEncoderCounter > turnTargetTicks) {
+    if (abs(leftEncoderCounter) > abs(turnTargetTicks)) { // need to account for negative
       stopMove();
       Serial.print(leftEncoderCounter); Serial.print('\t');
       Serial.print(rightEncoderCounter); Serial.print('\n');
@@ -516,30 +516,56 @@ void makeMovement() {
 //  leftSpeedSetpoint = baseForwardSpeed;  // speed is in encoder ticks per millisecond // 0.15 is 1 rev per second
 //  rightSpeedSetpoint = baseForwardSpeed;
 
+//void prepareForTurn() {
+//  if (nextTurnAngle == 0.0) {
+//    leftPWMBase = 0;
+//    rightPWMBase = 0;
+//  }
+//  else if (nextTurnAngle > 0) {
+//    leftPWMBase = baseSpeedPWM;
+//    rightPWMBase = - baseSpeedPWM;
+//    leftSpeedSetpoint = baseTurnSpeed;
+//    rightSpeedSetpoint = - baseTurnSpeed;
+//    digitalWrite(pinLeftMotorDirection, HIGH);
+//    digitalWrite(pinRightMotorDirection, LOW);
+//  }
+//  else {
+//    leftPWMBase = - baseSpeedPWM;
+//    rightPWMBase = baseSpeedPWM;
+//    leftSpeedSetpoint = - baseTurnSpeed;
+//    rightSpeedSetpoint = baseTurnSpeed;
+//    digitalWrite(pinLeftMotorDirection, LOW);
+//    digitalWrite(pinRightMotorDirection, HIGH);
+//  }
+//}
+
+
 void prepareForTurn() {
   if (nextTurnAngle == 0.0) {
     leftPWMBase = 0;
     rightPWMBase = 0;
   }
-  else if (nextTurnAngle > 0) {
-    leftPWMBase = baseSpeedPWM;
-    rightPWMBase = - baseSpeedPWM;
-    leftSpeedSetpoint = baseTurnSpeed;
-    rightSpeedSetpoint = - baseTurnSpeed;
-    digitalWrite(pinLeftMotorDirection, HIGH);
-    digitalWrite(pinRightMotorDirection, LOW);
-  }
   else {
-    leftPWMBase = - baseSpeedPWM;
+    leftPWMBase = baseSpeedPWM;
     rightPWMBase = baseSpeedPWM;
-    leftSpeedSetpoint = - baseTurnSpeed;
+    leftSpeedSetpoint = baseTurnSpeed;
     rightSpeedSetpoint = baseTurnSpeed;
-    digitalWrite(pinLeftMotorDirection, LOW);
-    digitalWrite(pinRightMotorDirection, HIGH);
+
+    if (nextTurnAngle > 0) {
+      digitalWrite(pinLeftMotorDirection, HIGH);
+      digitalWrite(pinRightMotorDirection, LOW);
+    }
+    else {
+      digitalWrite(pinLeftMotorDirection, LOW);
+      digitalWrite(pinRightMotorDirection, HIGH);
+    }
   }
 }
 
+
 void turn() {
+  // direction has already been set
+  // PID is only controlling absolute speed
   leftPWM = leftPWMBase + (byte)leftPWMOutput;
   rightPWM = rightPWMBase + (byte)rightPWMOutput;
   analogWrite(pinLeftMotorPWM, leftPWM);
@@ -568,7 +594,7 @@ void calculateTurn() {
 void setTargets() {
   distanceTargetTicks = long((float)nextMoveForward / distancePerTick);
   // target for the LEFT WHEEL
-  // this is the distance the wheel will need to travel (assuming right wheel move oppositely) to acheive the desired angle
+  // this is the absolute distance the left wheel will need to travel (assuming right wheel move oppositely) to acheive the desired angle
   float wheelDistanceToTravel = (nextTurnAngle / (2 * PI) ) * turningCircleCircumference;
   turnTargetTicks = (long)(wheelDistanceToTravel / distancePerTick);
 }
@@ -606,8 +632,8 @@ void calculateSpeed() {
     //    leftEncoderCounter = 0;
     //    rightEncoderCounter = 0;
     sei();
-    leftSpeedActual = (leftEncoderCounterCopy - leftTicksLast) / (float)interval;
-    rightSpeedActual = (rightEncoderCounterCopy - rightTicksLast) / (float)interval;
+    leftSpeedActual = abs((leftEncoderCounterCopy - leftTicksLast) / (float)interval);
+    rightSpeedActual = abs((rightEncoderCounterCopy - rightTicksLast) / (float)interval);
     leftTicksLast = leftEncoderCounterCopy;
     rightTicksLast = rightEncoderCounterCopy;
     //    Serial.print(leftEncoderCounterCopy); Serial.print('\t');
