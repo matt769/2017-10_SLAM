@@ -145,34 +145,6 @@ void loop() {
   //    sendSensorData();
   //  }
 
-  // testing forward
-  //  leftSpeedSetpoint = baseForwardSpeed;  // speed is in encoder ticks per millisecond // 0.15 is 1 rev per second
-  //  rightSpeedSetpoint = baseForwardSpeed;
-  //  distanceTargetTicks = 5000;
-  //  leftSpeedPID.SetMode(AUTOMATIC);
-  //  rightSpeedPID.SetMode(AUTOMATIC);
-  //  forward();
-  //  speedCalcLast = millis();
-  //  while (1) {
-  //    calculateSpeed();
-  //    leftSpeedPID.Compute();
-  //    rightSpeedPID.Compute();
-  //    forward();  // to update the motors
-  //    Serial.print(leftSpeedSetpoint); Serial.print('\t');
-  //    Serial.print(rightSpeedSetpoint); Serial.print('\t');
-  //    Serial.print(leftSpeedActual); Serial.print('\t');
-  //    Serial.print(rightSpeedActual); Serial.print('\t');
-  //    Serial.print(leftPWMOutput); Serial.print('\t');
-  //    Serial.print(rightPWMOutput); Serial.print('\t');
-  //    Serial.print(leftPWM); Serial.print('\t');
-  //    Serial.print(rightPWM); Serial.print('\n');
-  //    if (rightEncoderCounter > distanceTargetTicks) {
-  //      stopMove();
-  //      Serial.print(leftEncoderCounter); Serial.print('\t');
-  //      Serial.print(rightEncoderCounter); Serial.print('\n');
-  //      while (1);
-  //    }
-  //  }
 
   // TESTING TURN
   nextTurnAngle = -6 * PI;  // radians
@@ -198,14 +170,51 @@ void loop() {
     Serial.print(rightPWM); Serial.print('\n');
     if (abs(leftEncoderCounter) > abs(turnTargetTicks)) { // need to account for negative
       stopMove();
-      Serial.print(leftEncoderCounter); Serial.print('\t');
-      Serial.print(rightEncoderCounter); Serial.print('\n');
-      while (1);
+      leftSpeedPID.SetMode(MANUAL);
+      rightSpeedPID.SetMode(MANUAL);
+
+      break;
+    }
+  }
+  Serial.print(leftEncoderCounter); Serial.print('\t');
+  Serial.print(rightEncoderCounter); Serial.print('\n');
+  leftEncoderCounter = 0;
+  rightEncoderCounter = 0;
+  delay(4000);
+
+
+  //   testing forward
+  leftSpeedSetpoint = baseForwardSpeed;  // speed is in encoder ticks per millisecond // 0.15 is 1 rev per second
+  rightSpeedSetpoint = baseForwardSpeed;
+  distanceTargetTicks = 2000;
+  leftSpeedPID.SetMode(AUTOMATIC);
+  rightSpeedPID.SetMode(AUTOMATIC);
+  forward();
+  speedCalcLast = millis();
+  while (1) {
+    calculateSpeed();
+    leftSpeedPID.Compute();
+    rightSpeedPID.Compute();
+    forward();  // to update the motors
+    Serial.print(leftSpeedSetpoint); Serial.print('\t');
+    Serial.print(rightSpeedSetpoint); Serial.print('\t');
+    Serial.print(leftSpeedActual); Serial.print('\t');
+    Serial.print(rightSpeedActual); Serial.print('\t');
+    Serial.print(leftPWMOutput); Serial.print('\t');
+    Serial.print(rightPWMOutput); Serial.print('\t');
+    Serial.print(leftPWM); Serial.print('\t');
+    Serial.print(rightPWM); Serial.print('\t');
+    Serial.print(leftEncoderCounter); Serial.print('\t');
+    Serial.print(distanceTargetTicks); Serial.print('\n');
+    if (abs(leftEncoderCounter) > abs(distanceTargetTicks)) {
+      stopMove();
+      break;
     }
   }
 
-
-
+  Serial.print(leftEncoderCounter); Serial.print('\t');
+  Serial.print(rightEncoderCounter); Serial.print('\n');
+  while (1);
 
 
   // testing by moving manually
