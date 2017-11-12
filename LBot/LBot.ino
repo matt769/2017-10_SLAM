@@ -52,13 +52,17 @@ const byte pinRightEncoderA = 3;
 const byte pinRightEncoderB = 9;
 volatile long leftEncoderCounter = 0;
 volatile long rightEncoderCounter = 0;
-byte baseSpeed = 200;
+byte baseSpeedPWM = 150;
+byte leftPWM;
+byte rightPWM;
 
 float leftSpeedSetpoint, leftSpeedActual, leftPWMOutput, rightSpeedSetpoint, rightSpeedActual, rightPWMOutput;
-float Kp = 1, Ki = 0, Kd = 0;
+float Kp = 500, Ki = 50, Kd = 0;
 PID leftSpeedPID(&leftSpeedActual, &leftPWMOutput, &leftSpeedSetpoint, Kp, Ki, Kd, DIRECT);
 PID rightSpeedPID(&rightSpeedActual, &rightPWMOutput, &rightSpeedSetpoint, Kp, Ki, Kd, DIRECT);
 unsigned long speedCalcLast;
+long leftTicksLast;
+long rightTicksLast;
 
 // for sending output
 unsigned long lastSent = 0;
@@ -81,16 +85,21 @@ void setup() {
   setupRangeFinder();
   setupMotorsAndEncoders();
 
-  leftSpeedPID.SetSampleTime(100);
-  rightSpeedPID.SetSampleTime(100);
+  leftSpeedPID.SetSampleTime(50);
+  rightSpeedPID.SetSampleTime(50);
   leftSpeedPID.SetMode(MANUAL);
   rightSpeedPID.SetMode(MANUAL);
   // PID limits are 0 to 255 by default
+  leftSpeedPID.SetOutputLimits(-50, 50);
+  rightSpeedPID.SetOutputLimits(-50, 50);
+
 
   Serial.println(F("Setup complete"));
 } // END LOOP
 
 
+
+// TEST LOOP
 void loop() {
 
   //  readSerialToBuffer();
@@ -129,8 +138,9 @@ void loop() {
   //  }
 
 
-  leftSpeedSetpoint = 150.0;  // speed is in encoder ticks per second
-  rightSpeedSetpoint = 150.0;
+  leftSpeedSetpoint = 1.0;  // speed is in encoder ticks per millisecond // 0.15 is 1 rev per second
+  rightSpeedSetpoint = 1.0;
+  distanceTargetTicks = 5000;
   leftSpeedPID.SetMode(AUTOMATIC);
   rightSpeedPID.SetMode(AUTOMATIC);
   forward();
@@ -138,17 +148,31 @@ void loop() {
   while (1) {
     calculateSpeed();
     leftSpeedPID.Compute();
-    bool tmp = rightSpeedPID.Compute();
-    if(tmp){
-      Serial.print(leftPWMOutput); Serial.print('\t');
-      Serial.print(rightPWMOutput); Serial.print('\n');
-    }
-
+    rightSpeedPID.Compute();
+    //    bool tmp = rightSpeedPID.Compute();
+    //    if(tmp){
+    //    Serial.print(leftPWMOutput); Serial.print('\t');
+    //    Serial.print(rightPWMOutput); Serial.print('\n');
+    //    }
     forward();  // to update the motors
 
+    Serial.print(leftSpeedSetpoint); Serial.print('\t');
+    Serial.print(rightSpeedSetpoint); Serial.print('\t');
+    Serial.print(leftSpeedActual); Serial.print('\t');
+    Serial.print(rightSpeedActual); Serial.print('\t');
+    Serial.print(leftPWMOutput); Serial.print('\t');
+    Serial.print(rightPWMOutput); Serial.print('\t');
+    Serial.print(leftPWM); Serial.print('\t');
+    Serial.print(rightPWM); Serial.print('\n');
+
+
+    if (rightEncoderCounter > distanceTargetTicks) {
+      stopMove();
+      Serial.print(leftEncoderCounter); Serial.print('\t');
+      Serial.print(rightEncoderCounter); Serial.print('\n');
+      while (1);
+    }
   }
-
-
 
 
   // testing by moving manually
@@ -158,9 +182,33 @@ void loop() {
   //  Serial.print(distanceMoved);Serial.print('\n');
   //  delay(1000);
 
-
 } // END LOOP
 
+
+//void loop(){
+//
+//    readSerialToBuffer();
+//    if (newDataReceived) parseData();
+//
+//    if (moveRequestReceived) {
+//      Serial.print(newCommandType); Serial.print('\t');
+//      Serial.print(nextTurnAngle); Serial.print('\t');
+//      Serial.print(nextMoveForward); Serial.print('\n');
+//      makeMovement();
+//      sendMotionData();
+//      takeRangeReadings();
+//      sendSensorData();
+//      moveRequestReceived = false;
+//    }
+//
+//
+//
+//} // END LOOP
+
+
+//////////////////////////////////////////////////////
+// FOR RANGE SENSING /////////////////////////////////
+//////////////////////////////////////////////////////
 
 
 void takeRangeReadings() {
@@ -439,15 +487,17 @@ void turn() {
 }
 
 void forward() {
+  leftPWM = baseSpeedPWM + (byte)leftPWMOutput;
+  rightPWM = baseSpeedPWM + (byte)rightPWMOutput;
   digitalWrite(pinLeftMotorDirection, HIGH);
-  digitalWrite(pinLeftMotorPWM, leftPWMOutput);
+  analogWrite(pinLeftMotorPWM, leftPWM);
   digitalWrite(pinRightMotorDirection, HIGH);
-  digitalWrite(pinRightMotorPWM, rightPWMOutput);
+  analogWrite(pinRightMotorPWM, rightPWM);
 }
 
 void stopMove() {
-  digitalWrite(pinLeftMotorPWM, 0);
-  digitalWrite(pinRightMotorPWM, 0);
+  digitalWrite(pinLeftMotorPWM, LOW);
+  digitalWrite(pinRightMotorPWM, LOW);
 }
 
 void calculateTurn() {
@@ -493,15 +543,17 @@ void calculateSpeed() {
     cli();
     leftEncoderCounterCopy = leftEncoderCounter;
     rightEncoderCounterCopy = rightEncoderCounter;
-    leftEncoderCounter = 0;
-    rightEncoderCounter = 0;
+    //    leftEncoderCounter = 0;
+    //    rightEncoderCounter = 0;
     sei();
-    leftSpeedActual = leftEncoderCounterCopy / (float)interval;
-    rightSpeedActual = rightEncoderCounterCopy / (float)interval;
-    Serial.print(leftEncoderCounterCopy); Serial.print('\t');
-    Serial.print(rightEncoderCounterCopy); Serial.print('\t');
+    leftSpeedActual = (leftEncoderCounterCopy - leftTicksLast) / (float)interval;
+    rightSpeedActual = (rightEncoderCounterCopy - rightTicksLast) / (float)interval;
+    leftTicksLast = leftEncoderCounterCopy;
+    rightTicksLast = rightEncoderCounterCopy;
+    //    Serial.print(leftEncoderCounterCopy); Serial.print('\t');
+    //    Serial.print(rightEncoderCounterCopy); Serial.print('\t');
     speedCalcLast += 100;
-    Serial.print(leftSpeedActual); Serial.print('\t');
-    Serial.print(rightSpeedActual); Serial.print('\n');
+    //    Serial.print(leftSpeedActual); Serial.print('\t');
+    //    Serial.print(rightSpeedActual); Serial.print('\n');
   }
 }

@@ -60,11 +60,14 @@ plt.ion()
 # for sending
 lastSent = time.clock()
 sendFreq = 5	# in seconds
+defaultTurn = 0.0		# radians
+defaultMove = 200.0		# millimeters
 def send():
 	global lastSent
 	if time.clock() - lastSent > sendFreq:
 		#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
-		package = "2" + "\t" + str(random.randint(-100,100)) + "\t" + str(random.randint(1,100)) + "\n"
+		#package = "2" + "\t" + str(random.randint(-100,100)) + "\t" + str(random.randint(1,100)) + "\n"
+		package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"
 		ser.write(package)
 		print "Sent:",package.strip('\n')
 		lastSent += sendFreq
