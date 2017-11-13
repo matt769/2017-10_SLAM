@@ -46,6 +46,7 @@ readingAnglesDegrees = [-80,-70,-60,-50,-40,-30,-20,-10,0,10,20,30,40,50,60,70,8
 readingAnglesRadians = [x*math.pi/180 for x in readingAnglesDegrees]
 sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
 allSensorReadings = list()
+positionHistory = list()
 
 #package types
 MOTION = 1
@@ -195,13 +196,15 @@ while True:
 		if packetType == MOTION:
 			print "Received motion data:",angleTurned, distanceMoved
 			globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, distanceMoved)
+			positionHistory.append((globalPosition,globalHeading))
 			print "New position:", globalPosition, globalHeading
 		elif packetType == SENSOR:
 			print "Received sensor data:",sensorReadings
-			allSensorReadings.append(sensorReadings)	# keep full list (this will need to be changed in future)
+			allSensorReadings.extend(sensorReadings)	# keep full list (this will need to be changed in future)
+			#print len(allSensorReadings)
 			x, y = convertReadingsForPlot(calculateSensorReadingPositions(readingAnglesRadians, sensorReadings))
-			plt.scatter(x, y)
-			plt.pause(0.001)
+			#plt.scatter(x, y)
+			#plt.pause(0.001)
 			robotReadyForNewCommand = True	# re-think where this goes. leaving here for now.
 		elif packetType == CONTROL:
 			print "Packet not yet defined. You shouldn't be here."
