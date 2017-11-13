@@ -12,6 +12,7 @@ import random
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+from msvcrt import getch
 
 
 port = 'COM6'
@@ -44,6 +45,7 @@ distanceMoved = 0.0
 readingAnglesDegrees = [-80,-70,-60,-50,-40,-30,-20,-10,0,10,20,30,40,50,60,70,80]
 readingAnglesRadians = [x*math.pi/180 for x in readingAnglesDegrees]
 sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
+allSensorReadings = list()
 
 #package types
 MOTION = 1
@@ -59,18 +61,23 @@ plt.ion()
 
 # for sending
 lastSent = time.clock()
-sendFreq = 5	# in seconds
+sendFreq = 10	# in seconds
+robotReadyForNewCommand = True;
 defaultTurn = 0.0		# radians
 defaultMove = 200.0		# millimeters
 def send():
 	global lastSent
-	if time.clock() - lastSent > sendFreq:
+	global robotReadyForNewCommand
+	#if time.clock() - lastSent > sendFreq:
+	if robotReadyForNewCommand:
 		#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
-		#package = "2" + "\t" + str(random.randint(-100,100)) + "\t" + str(random.randint(1,100)) + "\n"
-		package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"
+		package = "2" + "\t" + str(random.randint(-100,100)/100.0) + "\t" + str(random.randint(300,1000)) + "\n"
+		#package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"
+		#package = "2" + "\t" + str(1.5) + "\t" + str(800.0) + "\n"
 		ser.write(package)
 		print "Sent:",package.strip('\n')
 		lastSent += sendFreq
+		robotReadyForNewCommand = False	# set back to true when valid sensor data is received
 
 # for receiving
 def listenAndReceive(timeout=1):
@@ -173,6 +180,11 @@ def updatePositionAfterSense():
 ######################################
 print "Starting position:", globalPosition, globalHeading
 while True:
+	#key = getch()
+	# exit program with 'q'
+	#if key == 'q':
+	#	break
+
 	send()
 	(result,input) = listenAndReceive(1)
 	#print result, input
@@ -186,10 +198,11 @@ while True:
 			print "New position:", globalPosition, globalHeading
 		elif packetType == SENSOR:
 			print "Received sensor data:",sensorReadings
+			allSensorReadings.append(sensorReadings)	# keep full list (this will need to be changed in future)
 			x, y = convertReadingsForPlot(calculateSensorReadingPositions(readingAnglesRadians, sensorReadings))
 			plt.scatter(x, y)
 			plt.pause(0.001)
-			
+			robotReadyForNewCommand = True	# re-think where this goes. leaving here for now.
 		elif packetType == CONTROL:
 			print "Packet not yet defined. You shouldn't be here."
 		else:
