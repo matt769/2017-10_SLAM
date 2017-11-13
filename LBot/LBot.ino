@@ -63,6 +63,7 @@ float baseForwardSpeed = 1.0;
 const byte MOTOR_FORWARD = 1;
 const byte MOTOR_BACKWARD = 2;
 volatile int counter = 0;
+unsigned long motorTimeout = 5000;
 
 
 float leftSpeedSetpoint, leftSpeedActual, leftPWMOutput, rightSpeedSetpoint, rightSpeedActual, rightPWMOutput;
@@ -117,16 +118,16 @@ void loop() {
     Serial.print(nextTurnAngle); Serial.print('\t');
     Serial.print(nextMoveForward); Serial.print('\n');
     setTargets();
-//    Serial.print(turnTargetTicks); Serial.print('\t');
-//    Serial.print(distanceTargetTicks); Serial.print('\n');
+    //    Serial.print(turnTargetTicks); Serial.print('\t');
+    //    Serial.print(distanceTargetTicks); Serial.print('\n');
     resetCounters();
-//    Serial.println("1");
+    //    Serial.println("1");
     turnRoutine();
-//    Serial.println("2");
+    //    Serial.println("2");
     calculateTurn();
-//    Serial.println("3");
-//    Serial.print(leftEncoderCounter); Serial.print('\t');
-//    Serial.print(rightEncoderCounter); Serial.print('\t');
+    //    Serial.println("3");
+    //    Serial.print(leftEncoderCounter); Serial.print('\t');
+    //    Serial.print(rightEncoderCounter); Serial.print('\t');
     Serial.print(F("Angle turned:")); Serial.print('\t');
     Serial.print(angleTurned); Serial.print('\n');
     resetCounters();
@@ -135,9 +136,9 @@ void loop() {
     resetCounters();
     forwardRoutine();
     calculateDistance();
-//    Serial.print(leftEncoderCounter); Serial.print('\t');
-//    Serial.print(rightEncoderCounter); Serial.print('\t');
-    Serial.print(F("Distance moved:")); Serial.print('\t');    
+    //    Serial.print(leftEncoderCounter); Serial.print('\t');
+    //    Serial.print(rightEncoderCounter); Serial.print('\t');
+    Serial.print(F("Distance moved:")); Serial.print('\t');
     Serial.print(distanceMoved); Serial.print('\n');
     Serial.print('\n');
 
@@ -435,7 +436,8 @@ void turnRoutine() {
   prepareForTurn();
   motorsTurn();
   speedCalcLast = millis();
-  while (1) {
+  unsigned long timeoutStart = millis();
+  while (millis() - timeoutStart  < motorTimeout) {
     calculateSpeed();
     leftSpeedPID.Compute();
     rightSpeedPID.Compute();
@@ -446,11 +448,11 @@ void turnRoutine() {
     sei();
     if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks)) { // need to account for negative
       stopMove();
-      leftSpeedPID.SetMode(MANUAL);
-      rightSpeedPID.SetMode(MANUAL);
       break;
     }
   }
+  leftSpeedPID.SetMode(MANUAL);
+  rightSpeedPID.SetMode(MANUAL);
 }
 
 void forwardRoutine() {
@@ -460,7 +462,8 @@ void forwardRoutine() {
   rightSpeedPID.SetMode(AUTOMATIC);
   motorsForward();
   speedCalcLast = millis();
-  while (1) {
+  unsigned long timeoutStart = millis();
+  while (millis() - timeoutStart  < motorTimeout) {
     calculateSpeed();
     leftSpeedPID.Compute();
     rightSpeedPID.Compute();
@@ -470,11 +473,11 @@ void forwardRoutine() {
     sei();
     if (abs(leftEncoderCounter) > abs(distanceTargetTicks)) {
       stopMove();
-      leftSpeedPID.SetMode(MANUAL);
-      rightSpeedPID.SetMode(MANUAL);
       break;
     }
   }
+  leftSpeedPID.SetMode(MANUAL);
+  rightSpeedPID.SetMode(MANUAL);
 }
 
 void printCounters() {
@@ -540,8 +543,8 @@ void calculateDistance() {
   leftEncoderCounterCopy = leftEncoderCounter;
   rightEncoderCounterCopy = rightEncoderCounter;
   sei();
-//  Serial.print(leftEncoderCounterCopy);Serial.print('\t');
-//  Serial.print(rightEncoderCounterCopy);Serial.print('\n');
+  //  Serial.print(leftEncoderCounterCopy);Serial.print('\t');
+  //  Serial.print(rightEncoderCounterCopy);Serial.print('\n');
   // for the moment, assume that it has travelled in perfectly straight line
   // in which case the encoder counts will be the same
   distanceMoved = (float)leftEncoderCounterCopy * distancePerTick;
