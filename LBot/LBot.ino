@@ -29,11 +29,11 @@ float defaultMoveForward = 200.0; // in millimeters
 bool moveRequestReceived = false; // set to true after receiving a command to move // set to false after movement is done
 
 // for recording movement
-const float wheelBase = 85.0; // in millimeters // placeholder
-const float wheelCircumference = 32.0 * PI; // in millimeters // placeholder
+const float wheelBase = 117.0; // in millimeters // placeholder
+const float wheelCircumference = 60.0 * PI; // in millimeters // placeholder
 float angleTurned;
 float distanceMoved;
-const int encoderTicksPerRevolution = 3 * 50;  // ticks per motor shaft turn * gear ratio
+const int encoderTicksPerRevolution = 7 * 100;  // ticks per motor shaft turn * gear ratio
 const float distancePerTick = wheelCircumference / (float)encoderTicksPerRevolution;
 long distanceTargetTicks = 0;  // after receiving a distance to travel, convert to encoder ticks for quicker calculation
 long turnTargetTicks = 0;
