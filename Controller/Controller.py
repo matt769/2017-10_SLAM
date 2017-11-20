@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 from msvcrt import getch
 
 
+from findingCorners import *
+from manageLandmarks import *
+
 port = 'COM6'
 baudrate = 115200
 timeoutNum = 0.2
@@ -69,7 +72,7 @@ defaultMove = 200.0		# millimeters
 
 def decideNextMove():
 	turn = random.randint(-100,100)/100.0
-	move = random.randint(300,1000)
+	move = random.randint(300,500)
 	return turn, move
 
 
@@ -78,7 +81,7 @@ def send():
 	global robotReadyForNewCommand
 	#if time.clock() - lastSent > sendFreq:
 	if robotReadyForNewCommand:
-	raw_input("press any key to send next command")
+		raw_input("press any key to send next command")
 		turn, move = decideNextMove()
 		#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
 		package = "2" + "\t" + str(turn) + "\t" + str(move) + "\n"
@@ -157,7 +160,7 @@ def calculateSensorReadingPositions(angles, distances):
 	readingPositions = []
 	for idx in range(len(distances)):#
 		# add sense check
-		if distances[idx] == 0.0: continue
+		if distances[idx] <= 0.02: continue
 		positionHeading = (globalHeading + angles[idx]) % (math.pi * 2)
 		x = globalPosition[0] + distances[idx] * math.sin(positionHeading)
 		y = globalPosition[1] + distances[idx] * math.cos(positionHeading)
@@ -186,190 +189,6 @@ def convertReadingsForPlot(data):
 
 
 
-######################################
-# FINDING CORNERS ####################
-######################################
-
-segmentLength = 1
-
-# points is a list of (x,y) coordinates
-# n is number of points a segment should go between (basically a smoother)
-def segmentLines(points, n=1):
-	angles = list()
-	segmentsLeft = list()
-	segmentsRight = list()
-	for idx in range(len(points)):
-		if idx < n or idx > (len(points)-n-1):
-			segmentsLeft.append(None)
-			segmentsRight.append(None)
-			continue
-		if points[idx] is None:
-			segmentsLeft.append(None)
-			segmentsRight.append(None)
-			continue
-		if points[idx-n] is None:
-			segmentsLeft.append(None)
-			continue
-		if points[idx+n] is None:
-			segmentsRight.append(None)
-			continue
-		
-		x,y = points[idx]
-		xLeft,yLeft = points[idx - n]
-		xRight,yRight = points[idx + n]
-		dyLeft = y - yLeft
-		dyRight = yRight - y
-		dxLeft = x - xLeft
-		dxRight = xRight - x
-		segmentsLeft.append((dxLeft,dyLeft))
-		segmentsRight.append((dxRight,dyRight))
-	return segmentsLeft, segmentsRight
-
-def calculateIntersects(segmentsLeft,segmentsRight):
-	angles = list()
-	for idx in range(len(segmentsLeft)):
-		#print segmentsLeft[idx]
-		if segmentsLeft[idx] is None or segmentsRight[idx] is None:
-			angles.append(None)
-			continue
-		dxLeft, dyLeft = segmentsLeft[idx]
-		dxRight, dyRight = segmentsRight[idx]
-		if dyLeft != 0 and dyRight != 0:
-			angleLeft = dxLeft / dyLeft
-			angleRight = dxRight / dyRight
-			intersect = atan((angleLeft-angleRight)/(1+angleLeft*angleRight))
-			angles.append(intersect)
-		else:
-			angles.append(None)
-	return angles
-
-
-	# CONSIDER CASE OF INSIDE CORNER
-
-# estimated point at which there is (or may be) a corner
-# 1 if there is a series of points with segments at particular angles
-# 2 or if there is a loss in readings within one sweep
-# 3 or if there is a large change in distance suddenly (is this basically the same as 1?)
-# FUTURE
-# include corner orientation
-# 	return the 'heading' which is the way it points
-
-# readingCountThreshold - how many missing readings required on one side to suggest a corner
-def findCorner(points, angles, n=1, angleThreshold = 1.22, readingCountThreshold = 2):
-	# for now just pick a threshold
-	# and limit to a single result (the nearest)
-	cornerFound = False
-	cornerPosition = False
-	cornerHeading = False
-	maxValIdxPos = -1
-	maxVal = 0
-	# check if the largest angle change between adjacent segments is over the threshold
-	# could move to separate function
-	for idx in range(len(angles)):
-		if angles[idx] is None: continue
-		if abs(angles[idx]) > maxVal: 
-			maxVal = angles[idx]
-			maxValIdxPos = idx
-	if maxValIdxPos >= 0 and maxVal >= angleThreshold:
-		cornerFound = True
-		cornerPosition = points[maxValIdxPos]
-
-	# also check if the readings 'disappear' before the end, could be sign of a corner
-	# could move to separate function
-	if not(cornerFound):
-		lookLeftRange = range(-readingCountThreshold,0)
-		lookRightRange = range(1,readingCountThreshold+1)
-		for idx in range(len(points)):
-			if idx < readingCountThreshold or idx > (len(angles)-readingCountThreshold-1):
-				continue	# if reading at beginning or end then can't do this check
-			if points[idx] is None:
-				continue	# if reading does not exist then no way to classify as corner
-			# check if there are missing readings to the left
-			leftMissingCount = 0
-			for relativeIdx in lookLeftRange:
-				if points[idx+relativeIdx] is None: 
-					leftMissingCount += 1
-			if leftMissingCount >= readingCountThreshold:
-				cornerFound = True
-				cornerPosition = points[idx]
-				# add step to check if this is the closest candidate for a corner
-			rightMissingCount = 0
-			for relativeIdx in lookRightRange:
-				if points[idx+relativeIdx] is None: 
-					rightMissingCount += 1
-			if rightMissingCount >= readingCountThreshold:
-				cornerFound = True
-				cornerPosition = points[idx]
-				# add step to check if this is the closest candidate for a corner
-
-	return cornerFound, cornerPosition, cornerHeading
-
-
-
-######################################
-# LANDMARK INFO ######################
-######################################
-	
-
-# structure
-# coordinate mean, coordinate variance
-# ((xbar,ybar),(xvar,yvar))
-# need to track how many times each landmark is seen
-#	but if looking at a guassian, then how to stop them 'drifting'
-# use first observation as static, and subsequent observations must fit in?
-#	what if wrongly assigning a subsequent observation?
-
-# I guess these inaccuracies are just a consequence of landmark 'resolution'
-
-# when searching through the list of landmarks, would it be possible to cut down that list a bit
-#	i.e. to possible points within some range of current estimated position
-
-# how do I decide whether a landmark I've just see is the same as a landmark in my map
-# for the moment, I will just apply some threshold on the euclidean distance between their means
-
-def calcDistance(point1,point2):
-	x1,y1 = point1
-	x2,y2 = point2
-	dist = math.sqrt((x1-x2)**2 + (y1-y2)**2)
-	return dist
-
-	
-	
-def checkIfLandmarkExists(pointToCheck, checkList, threshold = 1.0):
-	minDist = threshold + 1
-	exists = False
-	landmark = None
-	for checkPoint in checkList:
-		dist = calcDistance(pointToCheck,checkPoint)
-		if dist < minDist:
-			minDist = dist
-			minPoint = checkPoint
-	if minDist <= threshold:
-		exists = True
-		landmark = minPoint
-	return exists, landmark
-
-
-
-def processFoundLandmark(pointToCheck):
-	landmarkCountThreshold = 4
-	# check if point is already on landmark list
-	result1, position = checkIfLandmarkExists(pointToCheck,landmarksInUse)
-	# update count (may not be required)
-	if result1:
-		landmarksInUse[position] = landmarksInUse[position] + 1
-		print "landmark exists:", position
-	else:
-		result2, position = checkIfLandmarkExists(pointToCheck,landmarksPotential)
-		if result2:
-			print "potential landmark exists:", position
-			landmarksPotential[position] = landmarksPotential[position] + 1
-			if landmarksPotential[position] >= landmarkCountThreshold:
-				landmarksInUse[position] = landmarksPotential.pop(position)	# add to landmark list
-				print "added to main list"
-		else:
-			print "nothing found, add to potential list"
-			landmarksPotential[pointToCheck] = 1
 
 ######################################
 # MOTION UPDATE ######################
@@ -390,9 +209,19 @@ def processNewSensorData():
 	print "Received sensor data:",sensorReadings
 	allSensorReadings.extend(sensorReadings)	# keep full list (this will need to be changed in future)
 	#print len(allSensorReadings)
-	x, y = convertReadingsForPlot(calculateSensorReadingPositions(readingAnglesRadians, sensorReadings))
-	#plt.scatter(x, y)
-	#plt.pause(0.001)
+	readingPositions = calculateSensorReadingPositions(readingAnglesRadians, sensorReadings)
+	xp, yp = convertReadingsForPlot(readingPositions)
+	plt.scatter(xp, yp)
+	plt.pause(0.001)
+
+	# check for corner and show if found
+	sl,sr = segmentLines(readingPositions, segmentLength)
+	a = calculateIntersects(sl,sr)
+	f = findCorner(sensorReadings,a)
+	print f
+	if f[0]:
+		plt.plot(f[1][0],f[1][1],'ro')	# show corner if found
+		plt.pause(0.001)
 
 
 
@@ -402,15 +231,9 @@ def processNewSensorData():
 ######################################
 print "Starting position:", globalPosition, globalHeading
 while True:
-	#key = getch()
-	# exit program with 'q'
-	#if key == 'q':
-	#	break
-
 	send()
 	(result,input) = listenAndReceive(1)
 	#print result, input
-	
 	if result:
 		packetType = splitAndRoute(input)
 		#print packetType
