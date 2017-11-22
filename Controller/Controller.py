@@ -17,6 +17,7 @@ from msvcrt import getch
 
 from findingCorners import *
 from manageLandmarks import *
+from slam import *
 
 port = 'COM6'
 baudrate = 115200
@@ -194,6 +195,9 @@ def convertReadingsForPlot(data):
 # MOTION UPDATE ######################
 ######################################
 def processNewMotionData():
+	global globalPosition
+	global globalHeading
+	global positionHistory
 	print "Received motion data:",angleTurned, distanceMoved
 	globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, distanceMoved)
 	positionHistory.append((globalPosition,globalHeading))
@@ -217,7 +221,7 @@ def processNewSensorData():
 	# check for corner and show if found
 	sl,sr = segmentLines(readingPositions, segmentLength)
 	a = calculateIntersects(sl,sr)
-	f = findCorner(sensorReadings,a)
+	f = findCorner(readingPositions,a)
 	print f
 	if f[0]:
 		plt.plot(f[1][0],f[1][1],'ro')	# show corner if found
