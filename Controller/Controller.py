@@ -71,9 +71,14 @@ robotReadyForNewCommand = True;
 defaultTurn = 0.0		# radians
 defaultMove = 200.0		# millimeters
 
-def decideNextMove():
+def decideNextMove2():
 	turn = random.randint(-100,100)/100.0
 	move = random.randint(300,500)
+	return turn, move
+	
+def decideNextMove():
+	turn = 0.0
+	move = 0.0
 	return turn, move
 
 

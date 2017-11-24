@@ -7,7 +7,7 @@
 
 VL53L0X rangeFinder;
 Servo servo;
-const byte pinServo = 7;
+const byte pinServo = 22;
 
 // for incoming comms
 bool newDataReceived = false;
@@ -42,14 +42,15 @@ bool inMotionForward = false;
 bool inMotionTurning = false;
 
 // for motors
-const byte pinLeftMotorDirection = 4;
-const byte pinRightMotorDirection = 5;
-const byte pinLeftMotorPWM = 10;
-const byte pinRightMotorPWM = 11;
+// in current wiring, left motor is M2 on the driver
+const byte pinLeftMotorDirection = 10;
+const byte pinRightMotorDirection = 11;
+const byte pinLeftMotorPWM = 5;
+const byte pinRightMotorPWM = 6;
 const byte pinLeftEncoderA = 2;
-const byte pinLeftEncoderB = 17;
+const byte pinLeftEncoderB = 31;  //  31 is Port C bit 6
 const byte pinRightEncoderA = 3;
-const byte pinRightEncoderB = 9;
+const byte pinRightEncoderB = 38;  //  38 is Port D bit 7
 volatile long leftEncoderCounter = 0;
 volatile long rightEncoderCounter = 0;
 long leftEncoderCounterCopy, rightEncoderCounterCopy;
@@ -387,7 +388,7 @@ void setupMotorsAndEncoders() {
 
 void countLeftEncoder() {
   //  leftEncoderCounter++;
-  byte dir = bitRead(PINH, 5);   // pin 8 is port H.5 on the Mega
+  byte dir = bitRead(PINC, 6);
   if (dir == 1) {
     leftEncoderCounter++;
   }
@@ -398,8 +399,8 @@ void countLeftEncoder() {
 
 void countRightEncoder() {
   //  rightEncoderCounter++;
-  byte dir = bitRead(PINH, 6);   // pin 9 is port H.6 on the Mega
-  if (dir == 1) {
+  byte dir = bitRead(PIND, 7);
+  if (dir == 0) {
     rightEncoderCounter++;
   }
   else {
