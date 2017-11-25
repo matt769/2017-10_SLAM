@@ -42,6 +42,11 @@ except serial.SerialException:
 # MAIN SETUP #########################
 ######################################
 
+# MODE
+mode = 0	# 0 = Manual, 1 = Automatic (doesn't require any user input)
+# TO BE IMPLEMENTED
+
+
 # robot state
 globalPosition = (0.0, 0.0)
 globalHeading = 0.0
@@ -235,10 +240,10 @@ def processNewSensorData():
 	# check for corner and show if found
 	sl,sr = segmentLines(readingPositions, segmentLength)
 	a = calculateIntersects(sl,sr)
-	f = findCorner(readingPositions,a)
-	print f
-	if f[0]:
-		plt.plot(f[1][0],f[1][1],'ro')	# show corner if found
+	cornerFound, cornerPositions = findCorner(readingPositions,a)
+	print cornerFound, cornerPositions
+	for corner in cornerPositions:
+		plt.plot(corner[0],corner[1],'ro')	# show corner if found
 		plt.pause(0.001)
 
 
@@ -254,7 +259,7 @@ needNewUserInput = True
 
 while True:
 	if needNewUserInput:
-		userInput = raw_input("Enter next command, or Enter for default")
+		userInput = raw_input("Enter next command, or Enter for default\n")
 		if userInput == '':
 			# default path
 			robotReadyForNewCommand = True

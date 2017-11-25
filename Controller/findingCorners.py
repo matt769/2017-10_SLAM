@@ -4,7 +4,10 @@ import math
 # FINDING CORNERS ####################
 ######################################
 
-segmentLength = 1
+segmentLength = 5
+angleThreshold = 1.22	# radians
+missingReadingCountThreshold = 3	#how many missing readings required on one side to suggest a corner
+readingChangeThreshold = 200	# millimeters # somewhat based on sensor noise and scan resolution
 
 # points is a list of (x,y) coordinates
 # n is number of points a segment should go between (basically a smoother)
@@ -68,53 +71,61 @@ def calculateIntersects(segmentsLeft,segmentsRight):
 # include corner orientation
 # 	return the 'heading' which is the way it points
 
-# readingCountThreshold - how many missing readings required on one side to suggest a corner
-def findCorner(points, angles, n=1, angleThreshold = 1.22, readingCountThreshold = 2):
+# missingThreshold - how many missing readings required on one side to suggest a corner
+def findCorner(points, angles, n=1, angleThreshold = angleThreshold, missingThreshold = missingReadingCountThreshold, changeThreshold = readingChangeThreshold):
 	# for now just pick a threshold
 	# and limit to a single result (the nearest)
 	cornerFound = False
 	cornerPosition = False
+	cornerPositions = list()
 	cornerHeading = False
 	maxValIdxPos = -1
 	maxVal = 0
-	# check if the largest angle change between adjacent segments is over the threshold
+	# check if each angle change between adjacent segments is over the threshold
+	# if so, add to list of corners
 	# could move to separate function
 	for idx in range(len(angles)):
 		if angles[idx] is None: continue
-		if abs(angles[idx]) > maxVal: 
-			maxVal = angles[idx]
-			maxValIdxPos = idx
-	if maxValIdxPos >= 0 and maxVal >= angleThreshold:
-		cornerFound = True
-		cornerPosition = points[maxValIdxPos]
+		if abs(angles[idx]) > angleThreshold: 
+			cornerPosition = points[idx]
+			cornerPositions.append(cornerPosition)
 
 	# also check if the readings 'disappear' before the end, could be sign of a corner
 	# could move to separate function
-	if not(cornerFound):
-		lookLeftRange = range(-readingCountThreshold,0)
-		lookRightRange = range(1,readingCountThreshold+1)
-		for idx in range(len(points)):
-			if idx < readingCountThreshold or idx > (len(angles)-readingCountThreshold-1):
-				continue	# if reading at beginning or end then can't do this check
-			if points[idx] is None:
-				continue	# if reading does not exist then no way to classify as corner
-			# check if there are missing readings to the left
-			leftMissingCount = 0
-			for relativeIdx in lookLeftRange:
-				if points[idx+relativeIdx] is None: 
-					leftMissingCount += 1
-			if leftMissingCount >= readingCountThreshold:
-				cornerFound = True
-				cornerPosition = points[idx]
-				# add step to check if this is the closest candidate for a corner
-			rightMissingCount = 0
-			for relativeIdx in lookRightRange:
-				if points[idx+relativeIdx] is None: 
-					rightMissingCount += 1
-			if rightMissingCount >= readingCountThreshold:
-				cornerFound = True
-				cornerPosition = points[idx]
-				# add step to check if this is the closest candidate for a corner
+	lookLeftRange = range(-missingThreshold,0)
+	lookRightRange = range(1,missingThreshold+1)
+	for idx in range(len(points)):
+		if idx < missingThreshold or idx > (len(angles)-missingThreshold-1):
+			continue	# if reading at beginning or end then can't do this check
+		if points[idx] is None:
+			continue	# if reading does not exist then no way to classify as corner
+		# check if there are missing readings to the left
+		leftMissingCount = 0
+		for relativeIdx in lookLeftRange:
+			if points[idx+relativeIdx] is None: 
+				leftMissingCount += 1
+		if leftMissingCount >= missingThreshold:
+			cornerPosition = points[idx]
+			cornerPositions.append(cornerPosition)
+		# check if there are missing readings to the right
+		rightMissingCount = 0
+		for relativeIdx in lookRightRange:
+			if points[idx+relativeIdx] is None: 
+				rightMissingCount += 1
+		if rightMissingCount >= missingThreshold:
+			cornerPosition = points[idx]
+			cornerPositions.append(cornerPosition)
 
-	return cornerFound, cornerPosition, cornerHeading
+	# also check if there's a large change in reading
+	# don't really need the coordinates
+	# but will use for now, though less efficient
+	#for idx in range(len(points)):
+	#	if idx < 1 or idx > (len(angles)-1-1): continue	# if reading at beginning or end then can't do this check
+	#	a = points[idx-1]
+	#	b = points[idx]
+	#	c = points[idx+1]
+
+
+	if len(cornerPositions)>0: cornerFound = True
+	return cornerFound, cornerPositions
 
