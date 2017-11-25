@@ -52,6 +52,7 @@ distanceMoved = 0.0
 robotReadyForNewCommand = False
 waitingForRobotResponse = False
 robotResponseReceived = False
+needNewUserInput = False
 
 ## change this to match 160 
 readingAnglesDegrees = range(80,-81,-1)
@@ -93,17 +94,16 @@ def send():
 	global lastSent
 	global robotReadyForNewCommand
 	#if time.clock() - lastSent > sendFreq:
-	if robotReadyForNewCommand:
-		raw_input("press any key to send next command")
-		turn, move = decideNextMove()
-		#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
-		package = "2" + "\t" + str(turn) + "\t" + str(move) + "\n"
-		#package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"
-		#package = "2" + "\t" + str(1.5) + "\t" + str(800.0) + "\n"
-		ser.write(package)
-		print "Sent:",package.strip('\n')
-		lastSent += sendFreq
-		robotReadyForNewCommand = False	# set back to true when valid sensor data is received
+	#if robotReadyForNewCommand:
+	turn, move = decideNextMove()
+	#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
+	package = "2" + "\t" + str(turn) + "\t" + str(move) + "\n"
+	#package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"
+	#package = "2" + "\t" + str(1.5) + "\t" + str(800.0) + "\n"
+	ser.write(package)
+	print "Sent:",package.strip('\n')
+	lastSent += sendFreq
+	#robotReadyForNewCommand = False	# set back to true when valid sensor data is received
 
 # for receiving
 def listenAndReceive(timeout=1):
@@ -248,25 +248,50 @@ def processNewSensorData():
 # MAIN START #########################
 ######################################
 print "Starting position:", globalPosition, globalHeading
-robotReadyForNewCommand = True
+
+needNewUserInput = True
+#robotReadyForNewCommand = True
+
 while True:
-	send()
-	(result,input) = listenAndReceive(1)
-	#print result, input
-	if result:
-		packetType = splitAndRoute(input)
-		#print packetType
-		if packetType == MOTION:
-			processNewMotionData()
-		elif packetType == SENSOR:
-			processNewSensorData()
-			robotReadyForNewCommand = True	# re-think where this goes. leaving here for now.
-		elif packetType == CONTROL:
-			print "Packet not yet defined. You shouldn't be here."
-		else:
-			print "Data receipt failure"
+	if needNewUserInput:
+		userInput = raw_input("Enter next command, or Enter for default")
+		if userInput == '':
+			# default path
+			robotReadyForNewCommand = True
+			needNewUserInput = False
+		if userInput == 'q':
+			break
+		if userInput != '':
+			print "Not valid command"
+			# add possibility to give custom commands
 
-
+	if robotReadyForNewCommand:
+		send()
+		robotReadyForNewCommand = False
+		waitingForRobotResponse = True
+	if waitingForRobotResponse:
+		(result,input) = listenAndReceive(1)
+		#print result, input
+		if result:
+			packetType = splitAndRoute(input)
+			#print packetType
+			if packetType == MOTION:
+				processNewMotionData()
+			elif packetType == SENSOR:
+				processNewSensorData()
+				waitingForRobotResponse = False	# rethink placement
+				robotResponseReceived = True
+			elif packetType == CONTROL:
+				print "Packet not yet defined. You shouldn't be here."
+			else:
+				print "Data receipt failure"
+	if robotResponseReceived:
+		#processNewMotionData()	# may want to move this here at some point
+		#processNewSensorData()	# may want to move this here at some point
+		
+		# RUN SLAM
+		robotResponseReceived = False
+		needNewUserInput = True
 
 
 
@@ -288,7 +313,6 @@ while True:
 
 try:
 	#ser.write('x')
-	print "Sending final stop command"
 	ser.close()
 	print "Closing connection"
 except serial.SerialException:

@@ -86,6 +86,7 @@ const byte angleIncrement = 1;
 const byte numberOfReadings = ((maxAngle - minAngle) / angleIncrement) + 1;
 int rangeAngles[numberOfReadings];
 int rangeReadings[numberOfReadings];
+byte servoDelay = 40;
 
 
 void setup() {
@@ -164,7 +165,7 @@ void takeRangeReadings() {
 //  byte counter = 0;
   for (byte i = 0; i < numberOfReadings; i++) {
     servo.write(rangeAngles[i]);
-    delay(50);
+    delay(servoDelay);
     rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
     if (rangeReadings[i] > 2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
 //    Serial.println(counter);
