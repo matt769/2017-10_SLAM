@@ -80,8 +80,10 @@ unsigned long lastSent = 0;
 unsigned long tm;
 
 // distance readings
-// there will be 17 (from 10 to 170 degrees)
-const byte numberOfReadings = 17;
+const byte minAngle = 10;
+const byte maxAngle = 170;
+const byte angleIncrement = 1;
+const byte numberOfReadings = ((maxAngle - minAngle) / angleIncrement) + 1;
 int rangeAngles[numberOfReadings];
 int rangeReadings[numberOfReadings];
 
@@ -105,6 +107,7 @@ void setup() {
   rightSpeedPID.SetOutputLimits(-50, 50);
 
   Serial.println(F("Setup complete"));
+  Serial.println(numberOfReadings);
 } // END LOOP
 
 
@@ -158,13 +161,16 @@ void loop() {
 
 
 void takeRangeReadings() {
+//  byte counter = 0;
   for (byte i = 0; i < numberOfReadings; i++) {
     servo.write(rangeAngles[i]);
     delay(50);
     rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
     if (rangeReadings[i] > 2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
+//    Serial.println(counter);
+//    counter++;
   }
-  servo.write(rangeAngles[0]);  // ready for next time
+  servo.write(minAngle);  // ready for next time
 }
 
 //////////////////////////////////////////////////////
@@ -346,7 +352,8 @@ void setupServo() {
   servo.write(10);
   servo.attach(pinServo);
   for (byte i = 0; i < numberOfReadings; i++) {
-    rangeAngles[i] = 10 + 10 * i;
+    //    rangeAngles[i] = 10 + 10 * i;
+    rangeAngles[i] = i + minAngle;
     //    Serial.println(rangeAngles[i]);
   }
 }

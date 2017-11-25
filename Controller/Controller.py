@@ -42,11 +42,19 @@ except serial.SerialException:
 # MAIN SETUP #########################
 ######################################
 
+# robot state
 globalPosition = (0.0, 0.0)
 globalHeading = 0.0
 angleTurned = 0.0
 distanceMoved = 0.0
-readingAnglesDegrees = [-80,-70,-60,-50,-40,-30,-20,-10,0,10,20,30,40,50,60,70,80]
+
+#program state
+robotReadyForNewCommand = False
+waitingForRobotResponse = False
+robotResponseReceived = False
+
+## change this to match 160 
+readingAnglesDegrees = range(80,-81,-1)
 readingAnglesRadians = [x*math.pi/180 for x in readingAnglesDegrees]
 sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
 allSensorReadings = list()
@@ -67,7 +75,6 @@ plt.ion()
 # for sending
 lastSent = time.clock()
 sendFreq = 10	# in seconds
-robotReadyForNewCommand = True;
 defaultTurn = 0.0		# radians
 defaultMove = 200.0		# millimeters
 
@@ -123,6 +130,8 @@ def splitAndRoute(str):
 	if packetType == MOTION:
 		status = parseMotionPackage(data)
 	elif packetType == SENSOR:
+		print len(data)
+		print data
 		status = parseSensorPackage(data)
 	elif packetType == CONTROL:
 		status = parseControlPackage(data)
@@ -239,6 +248,7 @@ def processNewSensorData():
 # MAIN START #########################
 ######################################
 print "Starting position:", globalPosition, globalHeading
+robotReadyForNewCommand = True
 while True:
 	send()
 	(result,input) = listenAndReceive(1)
