@@ -7,7 +7,7 @@ import math
 segmentLength = 5
 angleThreshold = 1.22	# radians
 missingReadingCountThreshold = 3	#how many missing readings required on one side to suggest a corner
-readingChangeThreshold = 200	# millimeters # somewhat based on sensor noise and scan resolution
+readingChangeThreshold = 100	# millimeters # somewhat based on sensor noise and scan resolution
 
 # points is a list of (x,y) coordinates
 # n is number of points a segment should go between (basically a smoother)
@@ -72,7 +72,7 @@ def calculateIntersects(segmentsLeft,segmentsRight):
 # 	return the 'heading' which is the way it points
 
 # missingThreshold - how many missing readings required on one side to suggest a corner
-def findCorner(points, angles, n=1, angleThreshold = angleThreshold, missingThreshold = missingReadingCountThreshold, changeThreshold = readingChangeThreshold):
+def findCorner(points, angles, rawReadings, n=1, angleThreshold = angleThreshold, missingThreshold = missingReadingCountThreshold, changeThreshold = readingChangeThreshold):
 	# for now just pick a threshold
 	# and limit to a single result (the nearest)
 	cornerFound = False
@@ -116,20 +116,27 @@ def findCorner(points, angles, n=1, angleThreshold = angleThreshold, missingThre
 			cornerPosition = points[idx]
 			cornerPositions.append(cornerPosition)
 
-	# also check if there's a large change in reading
-	# don't really need the coordinates
-	# but will use for now, though less efficient
-	#for idx in range(len(points)):
-	#	if idx < 1 or idx > (len(angles)-1-1): continue	# if reading at beginning or end then can't do this check
-	#	a = points[idx-1]
-	#	b = points[idx]
-	#	c = points[idx+1]
+	# also check for 'spike' landmarks
+	# don't really need the coordinates, just raw readings
 
+	for idx in range(len(points)):
+		if idx < 1 or idx > (len(points)-1-1): continue	# if reading at beginning or end then can't do this check
+		a = rawReadings[idx-1]
+		b = rawReadings[idx]
+		c = rawReadings[idx+1]
+		if a == 0 or b == 0 or c == 0: continue
+		
+		# have included a check that the signs are the same, otherwise could be straight line at close to 90deg angle to sensor
+		if abs(a-b) > changeThreshold and abs(c-b) > changeThreshold and (a<b)==(c<b):
+			cornerPosition = points[idx]
+			cornerPositions.append(cornerPosition)
+		
+		
 	if len(cornerPositions)>0: cornerFound = True
 	return cornerFound, cornerPositions
 
 def getCorners(readingPositions,rawReadings):
 	sl,sr = segmentLines(readingPositions, segmentLength)
 	a = calculateIntersects(sl,sr)
-	cornerFound, cornerPositions = findCorner(readingPositions,a)
+	cornerFound, cornerPositions = findCorner(readingPositions, a, rawReadings)
 	return cornerFound, cornerPositions
