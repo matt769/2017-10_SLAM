@@ -122,31 +122,28 @@ void loop() {
     Serial.print(newCommandType); Serial.print('\t');
     Serial.print(nextTurnAngle); Serial.print('\t');
     Serial.print(nextMoveForward); Serial.print('\n');
-    setTargets();
-    //    Serial.print(turnTargetTicks); Serial.print('\t');
-    //    Serial.print(distanceTargetTicks); Serial.print('\n');
-    resetCounters();
-    //    Serial.println("1");
-    turnRoutine();
-    //    Serial.println("2");
-    calculateTurn();
-    //    Serial.println("3");
-    //    Serial.print(leftEncoderCounter); Serial.print('\t');
-    //    Serial.print(rightEncoderCounter); Serial.print('\t');
-    Serial.print(F("Angle turned:")); Serial.print('\t');
-    Serial.print(angleTurned); Serial.print('\n');
-    resetCounters();
 
-    delay(500);
-    resetCounters();
-    forwardRoutine();
-    calculateDistance();
-    //    Serial.print(leftEncoderCounter); Serial.print('\t');
-    //    Serial.print(rightEncoderCounter); Serial.print('\t');
-    Serial.print(F("Distance moved:")); Serial.print('\t');
-    Serial.print(distanceMoved); Serial.print('\n');
-    Serial.print('\n');
-
+    if ( (int)nextTurnAngle == 0 && (int)nextMoveForward == 0){
+      angleTurned = 0.0;
+      distanceMoved = 0.0;
+    }
+    else {
+      setTargets();
+      resetCounters();
+      turnRoutine();
+      calculateTurn();
+      Serial.print(F("Angle turned:")); Serial.print('\t');
+      Serial.print(angleTurned); Serial.print('\n');
+      resetCounters();
+  
+      delay(500);
+      resetCounters();
+      forwardRoutine();
+      calculateDistance();
+      Serial.print(F("Distance moved:")); Serial.print('\t');
+      Serial.print(distanceMoved); Serial.print('\n');
+      Serial.print('\n');
+    }
     sendMotionData();
     takeRangeReadings();
     sendSensorData();

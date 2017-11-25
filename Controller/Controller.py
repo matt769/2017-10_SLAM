@@ -135,8 +135,8 @@ def splitAndRoute(str):
 	if packetType == MOTION:
 		status = parseMotionPackage(data)
 	elif packetType == SENSOR:
-		print len(data)
-		print data
+		#print len(data)
+		#print data
 		status = parseSensorPackage(data)
 	elif packetType == CONTROL:
 		status = parseControlPackage(data)
@@ -238,9 +238,7 @@ def processNewSensorData():
 	plt.pause(0.001)
 
 	# check for corner and show if found
-	sl,sr = segmentLines(readingPositions, segmentLength)
-	a = calculateIntersects(sl,sr)
-	cornerFound, cornerPositions = findCorner(readingPositions,a)
+	cornerFound, cornerPositions = getCorners(readingPositions,sensorReadings)
 	print cornerFound, cornerPositions
 	for corner in cornerPositions:
 		plt.plot(corner[0],corner[1],'ro')	# show corner if found
@@ -259,7 +257,7 @@ needNewUserInput = True
 
 while True:
 	if needNewUserInput:
-		userInput = raw_input("Enter next command, or Enter for default\n")
+		userInput = raw_input("Enter next command, Enter for default, q to quit\n")
 		if userInput == '':
 			# default path
 			robotReadyForNewCommand = True

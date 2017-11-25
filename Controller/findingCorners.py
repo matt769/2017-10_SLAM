@@ -125,7 +125,11 @@ def findCorner(points, angles, n=1, angleThreshold = angleThreshold, missingThre
 	#	b = points[idx]
 	#	c = points[idx+1]
 
-
 	if len(cornerPositions)>0: cornerFound = True
 	return cornerFound, cornerPositions
 
+def getCorners(readingPositions,rawReadings):
+	sl,sr = segmentLines(readingPositions, segmentLength)
+	a = calculateIntersects(sl,sr)
+	cornerFound, cornerPositions = findCorner(readingPositions,a)
+	return cornerFound, cornerPositions
