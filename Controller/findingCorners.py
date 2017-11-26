@@ -5,7 +5,7 @@ import math
 ######################################
 
 segmentLength = 5
-angleThreshold = 1.22	# radians
+angleThreshold = 0.8	# radians
 missingReadingCountThreshold = 3	#how many missing readings required on one side to suggest a corner
 readingChangeThreshold = 100	# millimeters # somewhat based on sensor noise and scan resolution
 
@@ -26,8 +26,10 @@ def segmentLines(points, n=1):
 			continue
 		if points[idx-n] is None:
 			segmentsLeft.append(None)
+			segmentsRight.append(None)
 			continue
 		if points[idx+n] is None:
+			segmentsLeft.append(None)
 			segmentsRight.append(None)
 			continue
 		

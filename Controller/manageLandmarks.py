@@ -3,7 +3,6 @@ import math
 ######################################
 # LANDMARK INFO ######################
 ######################################
-	
 
 # structure
 # coordinate mean, coordinate variance
@@ -21,15 +20,26 @@ import math
 # how do I decide whether a landmark I've just see is the same as a landmark in my map
 # for the moment, I will just apply some threshold on the euclidean distance between their means
 
+#consider situation where I have multiple landmarks in the latest scan
+# only one of them can be matched to an existing landmark
+
+
+landmarkCountThreshold = 4
+landmarkDistanceThreshold = 10.0
+
+#landmarksInUse = dict()
+#landmarksPotential = dict()
+#landmarksFalse = dict()	# prevent any landmarks from being found in these areas # not sure if needed
+
+
 def calcDistance(point1,point2):
 	x1,y1 = point1
 	x2,y2 = point2
 	dist = math.sqrt((x1-x2)**2 + (y1-y2)**2)
 	return dist
 
-	
-	
-def checkIfLandmarkExists(pointToCheck, checkList, threshold = 1.0):
+
+def checkIfLandmarkExists(pointToCheck, checkList, threshold = landmarkDistanceThreshold):
 	minDist = threshold + 1
 	exists = False
 	landmark = None
@@ -44,9 +54,7 @@ def checkIfLandmarkExists(pointToCheck, checkList, threshold = 1.0):
 	return exists, landmark
 
 
-
-def processFoundLandmark(pointToCheck):
-	landmarkCountThreshold = 4
+def processFoundLandmark(landmarksInUse, landmarksPotential, pointToCheck):
 	# check if point is already on landmark list
 	result1, position = checkIfLandmarkExists(pointToCheck,landmarksInUse)
 	# update count (may not be required)

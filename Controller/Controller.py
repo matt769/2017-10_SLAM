@@ -53,6 +53,11 @@ globalHeading = 0.0
 angleTurned = 0.0
 distanceMoved = 0.0
 
+# map state
+landmarksInUse = dict()
+landmarksPotential = dict()
+newLandmarkCandidates = list()
+
 #program state
 robotReadyForNewCommand = False
 waitingForRobotResponse = False
@@ -180,7 +185,9 @@ def calculateSensorReadingPositions(angles, distances):
 	readingPositions = []
 	for idx in range(len(distances)):#
 		# add sense check
-		if distances[idx] <= 0.02: continue
+		if distances[idx] <= 0.02:
+			readingPositions.append(None)
+			continue
 		positionHeading = (globalHeading + angles[idx]) % (math.pi * 2)
 		x = globalPosition[0] + distances[idx] * math.sin(positionHeading)
 		y = globalPosition[1] + distances[idx] * math.cos(positionHeading)
@@ -205,9 +212,6 @@ def convertReadingsForPlot(data):
 		x.append(data[idx][0])
 		y.append(data[idx][1])
 	return x,y
-
-
-
 
 
 ######################################
@@ -243,6 +247,7 @@ def processNewSensorData():
 	for corner in cornerPositions:
 		plt.plot(corner[0],corner[1],'ro')	# show corner if found
 		plt.pause(0.001)
+	return cornerPositions
 
 
 
@@ -291,6 +296,7 @@ while True:
 	if robotResponseReceived:
 		#processNewMotionData()	# may want to move this here at some point
 		#processNewSensorData()	# may want to move this here at some point
+		# DEAL WITH LANDMARKS
 		
 		# RUN SLAM
 		robotResponseReceived = False
