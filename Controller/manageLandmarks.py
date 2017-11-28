@@ -4,9 +4,6 @@ import math
 # LANDMARK INFO ######################
 ######################################
 
-# structure
-# coordinate mean, coordinate variance
-# ((xbar,ybar),(xvar,yvar))
 # need to track how many times each landmark is seen
 #	but if looking at a guassian, then how to stop them 'drifting'
 # use first observation as static, and subsequent observations must fit in?
@@ -24,11 +21,11 @@ import math
 # only one of them can be matched to an existing landmark
 
 
-landmarkCountThreshold = 4
-landmarkDistanceThreshold = 10.0
+landmarkCountThreshold = 3
+landmarkDistanceThreshold = 50.0
 
-#landmarksInUse = dict()
-#landmarksPotential = dict()
+#landmarksInUse = dict()		# index = (position, observedCount)
+#landmarksPotential = dict	# index = (position, observedCount)
 #landmarksFalse = dict()	# prevent any landmarks from being found in these areas # not sure if needed
 
 
@@ -42,33 +39,51 @@ def calcDistance(point1,point2):
 def checkIfLandmarkExists(pointToCheck, checkList, threshold = landmarkDistanceThreshold):
 	minDist = threshold + 1
 	exists = False
-	landmark = None
-	for checkPoint in checkList:
-		dist = calcDistance(pointToCheck,checkPoint)
+	landmarkIdx = None
+	for idx in range(len(checkList)):
+		checkListPoint = checkList[idx][0]
+		dist = calcDistance(pointToCheck,checkListPoint)
 		if dist < minDist:
 			minDist = dist
-			minPoint = checkPoint
+			minPointIdx = idx
 	if minDist <= threshold:
 		exists = True
-		landmark = minPoint
-	return exists, landmark
+		landmarkIdx = minPointIdx
+	return exists, landmarkIdx
 
 
-def processFoundLandmark(landmarksInUse, landmarksPotential, pointToCheck):
+def processSensedLandmark(landmarksInUse, landmarksPotential, pointToCheck, pointIdx):
+	landmarkIdx = None
 	# check if point is already on landmark list
-	result1, position = checkIfLandmarkExists(pointToCheck,landmarksInUse)
+	existsInUse, landmarkIdx = checkIfLandmarkExists(pointToCheck,landmarksInUse)
 	# update count (may not be required)
-	if result1:
-		landmarksInUse[position] = landmarksInUse[position] + 1
-		print "landmark exists:", position
+	if existsInUse:
+		position, count = landmarksInUse[landmarkIdx][0],landmarksInUse[landmarkIdx][1]
+		landmarksInUse[landmarkIdx] = position, count+1
+		#print "landmark exists:", position, count
 	else:
-		result2, position = checkIfLandmarkExists(pointToCheck,landmarksPotential)
-		if result2:
-			print "potential landmark exists:", position
-			landmarksPotential[position] = landmarksPotential[position] + 1
-			if landmarksPotential[position] >= landmarkCountThreshold:
-				landmarksInUse[position] = landmarksPotential.pop(position)	# add to landmark list
-				print "added to main list"
+		existsPotential, positionIdx = checkIfLandmarkExists(pointToCheck,landmarksPotential)
+		if existsPotential:
+			position, count = landmarksPotential[positionIdx][0],landmarksPotential[positionIdx][1]
+			#print "potential landmark exists:", position, count
+			landmarksPotential[positionIdx] = position, count+1
+			if count+1 >= landmarkCountThreshold:
+				landmarksInUse.append(landmarksPotential.pop(positionIdx))	# add to landmark list
+				landmarkIdx = len(landmarksInUse)-1	# the last index in the list
+				#print "added to main list"
 		else:
-			print "nothing found, add to potential list"
-			landmarksPotential[pointToCheck] = 1
+			#print "nothing found, add to potential list"
+			position = pointToCheck
+			count = 1
+			landmarksPotential.append((pointToCheck,count))
+	return landmarkIdx
+
+# need to keep the idx as this will be used to tie the landmark back to a specific sensor reading
+def processAllLandmarks(landmarksInUse, landmarksPotential, allPoints, pointIdxs):
+	results = list()
+	for idx in range(len(allPoints)):
+		#print allPoints[idx], pointIdxs[idx]
+		landmarkIdx = processSensedLandmark(landmarksInUse, landmarksPotential, allPoints[idx], pointIdxs[idx])
+		if landmarkIdx is not None:
+			results.append((pointIdxs[idx], landmarkIdx))	# sensor index, and landmark index
+	return results

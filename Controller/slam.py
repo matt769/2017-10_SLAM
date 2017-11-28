@@ -140,7 +140,7 @@ def runSlam(motion,measurements):
 		omega, xi = measurementUpdateSlam(omega, xi, measurement)
 	omega, xi = reduce(omega, xi)
 	mu = calculateMu(omega, xi)
-	return mu
+	return mu[:2], mu[2:]	# robot position, landmarks
 
 
 

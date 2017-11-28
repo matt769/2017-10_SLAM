@@ -52,11 +52,15 @@ globalPosition = (0.0, 0.0)
 globalHeading = 0.0
 angleTurned = 0.0
 distanceMoved = 0.0
+dx = 0.0
+dy = 0.0
 
 # map state
-landmarksInUse = dict()
-landmarksPotential = dict()
+landmarksInUse = list()		# index = (position, observedCount)
+landmarksPotential = list()	# index = (position, observedCount)
 newLandmarkCandidates = list()
+lx = 0.0	# distance to landmark
+ly = 0.0	# distance to landmark
 
 #program state
 robotReadyForNewCommand = False
@@ -94,11 +98,15 @@ def decideNextMove2():
 	move = random.randint(300,500)
 	return turn, move
 	
-def decideNextMove():
+def decideNextMove3():
 	turn = 0.0
 	move = 0.0
 	return turn, move
 
+def decideNextMove():
+	turn = 1.57
+	move = 200.0
+	return turn, move
 
 def send():
 	global lastSent
@@ -221,9 +229,14 @@ def processNewMotionData():
 	global globalPosition
 	global globalHeading
 	global positionHistory
+	global dx
+	global dy
 	print "Received motion data:",angleTurned, distanceMoved
 	globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, distanceMoved)
 	positionHistory.append((globalPosition,globalHeading))
+	#addition to incorporate slam
+	dx = distanceMoved * math.sin(globalHeading)
+	dy = distanceMoved * math.cos(globalHeading)
 	print "New position:", globalPosition, globalHeading
 
 
@@ -238,16 +251,16 @@ def processNewSensorData():
 	#print len(allSensorReadings)
 	readingPositions = calculateSensorReadingPositions(readingAnglesRadians, sensorReadings)
 	xp, yp = convertReadingsForPlot(readingPositions)
-	plt.scatter(xp, yp)
+	plt.scatter(xp, yp, c = 'b', marker = '.')
 	plt.pause(0.001)
 
 	# check for corner and show if found
-	cornerFound, cornerPositions = getCorners(readingPositions,sensorReadings)
+	cornerFound, cornerPositions, cornerPositionsIdx = getCorners(readingPositions,sensorReadings)
 	print cornerFound, cornerPositions
 	for corner in cornerPositions:
-		plt.plot(corner[0],corner[1],'ro')	# show corner if found
+		plt.plot(corner[0],corner[1],'r.')	# show corner if found
 		plt.pause(0.001)
-	return cornerPositions
+	return cornerPositions, cornerPositionsIdx
 
 
 
@@ -284,21 +297,53 @@ while True:
 			packetType = splitAndRoute(input)
 			#print packetType
 			if packetType == MOTION:
-				processNewMotionData()
+				#processNewMotionData()
+				placeholder = None
 			elif packetType == SENSOR:
-				processNewSensorData()
+				#processNewSensorData()
 				waitingForRobotResponse = False	# rethink placement
 				robotResponseReceived = True
 			elif packetType == CONTROL:
 				print "Packet not yet defined. You shouldn't be here."
 			else:
 				print "Data receipt failure"
+
 	if robotResponseReceived:
-		#processNewMotionData()	# may want to move this here at some point
-		#processNewSensorData()	# may want to move this here at some point
+		processNewMotionData()
+		newLandmarkCandidates, newLandmarkCandidatesIdx  = processNewSensorData()
+
 		# DEAL WITH LANDMARKS
+		sensedLandmarks = processAllLandmarks(landmarksInUse, landmarksPotential, newLandmarkCandidates, newLandmarkCandidatesIdx)
+		# landmarksInUse and landmarksPotential are also updated
+		print "sensedLandmarks", sensedLandmarks
+		if len(sensedLandmarks)>0:
+			for sensorIdx, landmarkIdx in sensedLandmarks:
+				x,y = landmarksInUse[landmarkIdx][0]
+				plt.plot(x,y,'yo')	# show corner if found
+				plt.pause(0.001)
 		
 		# RUN SLAM
+		motionForSlam = (dx,dy)
+		#measurements = landmark idx, distance x, distance y
+		measurementsForSlam = list()
+		for sensorIdx, landmarkIdx in sensedLandmarks:
+			# calculate distance to landmark (based on sensor reading)
+			# don't want the global coords that I have previously calculated
+			reading = sensorReadings[sensorIdx]
+			angle = readingAnglesRadians[sensorIdx]
+			lx = reading*math.sin(angle)
+			ly = reading*math.cos(angle)
+			measurementsForSlam.append((landmarkIdx, (lx, ly)))
+			#print landmarkIdx, lx, ly
+		# I need to know which sensor reading was associated with each landmark found
+		# pass motion, plus list of landmark indices and distances
+		robotPosition, landmarkPositions = runSlam(motionForSlam,measurementsForSlam)
+		print robotPosition, landmarkPositions
+		
+		# UPDATE HEADING
+		# based on updated position and angle/distance to known landmark
+		
+		
 		robotResponseReceived = False
 		needNewUserInput = True
 

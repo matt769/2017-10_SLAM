@@ -73,13 +73,13 @@ def calculateIntersects(segmentsLeft,segmentsRight):
 # include corner orientation
 # 	return the 'heading' which is the way it points
 
-# missingThreshold - how many missing readings required on one side to suggest a corner
 def findCorner(points, angles, rawReadings, n=1, angleThreshold = angleThreshold, missingThreshold = missingReadingCountThreshold, changeThreshold = readingChangeThreshold):
 	# for now just pick a threshold
 	# and limit to a single result (the nearest)
 	cornerFound = False
 	cornerPosition = False
 	cornerPositions = list()
+	cornerPositionsIdx = list()	# list of 
 	cornerHeading = False
 	maxValIdxPos = -1
 	maxVal = 0
@@ -88,9 +88,11 @@ def findCorner(points, angles, rawReadings, n=1, angleThreshold = angleThreshold
 	# could move to separate function
 	for idx in range(len(angles)):
 		if angles[idx] is None: continue
-		if abs(angles[idx]) > angleThreshold: 
-			cornerPosition = points[idx]
-			cornerPositions.append(cornerPosition)
+		if abs(angles[idx]) > angleThreshold:
+			if idx not in cornerPositionsIdx:
+				cornerPosition = points[idx]
+				cornerPositions.append(cornerPosition)
+				cornerPositionsIdx.append(idx)
 
 	# also check if the readings 'disappear' before the end, could be sign of a corner
 	# could move to separate function
@@ -107,20 +109,23 @@ def findCorner(points, angles, rawReadings, n=1, angleThreshold = angleThreshold
 			if points[idx+relativeIdx] is None: 
 				leftMissingCount += 1
 		if leftMissingCount >= missingThreshold:
-			cornerPosition = points[idx]
-			cornerPositions.append(cornerPosition)
+			if idx not in cornerPositionsIdx:
+				cornerPosition = points[idx]
+				cornerPositions.append(cornerPosition)
+				cornerPositionsIdx.append(idx)
 		# check if there are missing readings to the right
 		rightMissingCount = 0
 		for relativeIdx in lookRightRange:
 			if points[idx+relativeIdx] is None: 
 				rightMissingCount += 1
 		if rightMissingCount >= missingThreshold:
-			cornerPosition = points[idx]
-			cornerPositions.append(cornerPosition)
+			if idx not in cornerPositionsIdx:
+				cornerPosition = points[idx]
+				cornerPositions.append(cornerPosition)
+				cornerPositionsIdx.append(idx)
 
 	# also check for 'spike' landmarks
 	# don't really need the coordinates, just raw readings
-
 	for idx in range(len(points)):
 		if idx < 1 or idx > (len(points)-1-1): continue	# if reading at beginning or end then can't do this check
 		a = rawReadings[idx-1]
@@ -130,15 +135,16 @@ def findCorner(points, angles, rawReadings, n=1, angleThreshold = angleThreshold
 		
 		# have included a check that the signs are the same, otherwise could be straight line at close to 90deg angle to sensor
 		if abs(a-b) > changeThreshold and abs(c-b) > changeThreshold and (a<b)==(c<b):
-			cornerPosition = points[idx]
-			cornerPositions.append(cornerPosition)
-		
-		
+			if idx not in cornerPositionsIdx:
+				cornerPosition = points[idx]
+				cornerPositions.append(cornerPosition)
+				cornerPositionsIdx.append(idx)
+	
 	if len(cornerPositions)>0: cornerFound = True
-	return cornerFound, cornerPositions
+	return cornerFound, cornerPositions, cornerPositionsIdx
 
 def getCorners(readingPositions,rawReadings):
 	sl,sr = segmentLines(readingPositions, segmentLength)
 	a = calculateIntersects(sl,sr)
-	cornerFound, cornerPositions = findCorner(readingPositions, a, rawReadings)
-	return cornerFound, cornerPositions
+	cornerFound, cornerPositions, cornerPositionsIdx = findCorner(readingPositions, a, rawReadings)
+	return cornerFound, cornerPositions, cornerPositionsIdx

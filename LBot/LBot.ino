@@ -29,7 +29,7 @@ float defaultMoveForward = 200.0; // in millimeters
 bool moveRequestReceived = false; // set to true after receiving a command to move // set to false after movement is done
 
 // for recording movement
-const float wheelBase = 117.0; // in millimeters // placeholder
+const float wheelBase = 109.0; // in millimeters // placeholder
 const float wheelCircumference = 60.0 * PI; // in millimeters // placeholder
 float angleTurned;
 float distanceMoved;
@@ -86,7 +86,7 @@ const byte angleIncrement = 1;
 const byte numberOfReadings = ((maxAngle - minAngle) / angleIncrement) + 1;
 int rangeAngles[numberOfReadings];
 int rangeReadings[numberOfReadings];
-byte servoDelay = 40;
+const byte servoDelay = 5 * angleIncrement; // allowing 5ms per degree
 
 
 void setup() {
@@ -108,7 +108,6 @@ void setup() {
   rightSpeedPID.SetOutputLimits(-50, 50);
 
   Serial.println(F("Setup complete"));
-  Serial.println(numberOfReadings);
 } // END LOOP
 
 
@@ -123,7 +122,7 @@ void loop() {
     Serial.print(nextTurnAngle); Serial.print('\t');
     Serial.print(nextMoveForward); Serial.print('\n');
 
-    if ( (int)nextTurnAngle == 0 && (int)nextMoveForward == 0){
+    if ( nextTurnAngle < 0.01 && nextMoveForward < 0.01){
       angleTurned = 0.0;
       distanceMoved = 0.0;
     }
@@ -131,6 +130,7 @@ void loop() {
       setTargets();
       resetCounters();
       turnRoutine();
+//      delay(1000);
       calculateTurn();
       Serial.print(F("Angle turned:")); Serial.print('\t');
       Serial.print(angleTurned); Serial.print('\n');
@@ -426,12 +426,12 @@ void prepareForTurn() {
     rightSpeedSetpoint = baseTurnSpeed;
 
     if (nextTurnAngle > 0) {
-      digitalWrite(pinLeftMotorDirection, HIGH);
-      digitalWrite(pinRightMotorDirection, LOW);
-    }
-    else {
       digitalWrite(pinLeftMotorDirection, LOW);
       digitalWrite(pinRightMotorDirection, HIGH);
+    }
+    else {
+      digitalWrite(pinLeftMotorDirection, HIGH);
+      digitalWrite(pinRightMotorDirection, LOW);
     }
   }
 }
@@ -452,7 +452,7 @@ void turnRoutine() {
     leftEncoderCounterCopy = leftEncoderCounter;
     rightEncoderCounterCopy = rightEncoderCounter;
     sei();
-    if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks)) { // need to account for negative
+    if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks) || abs(rightEncoderCounterCopy) > abs(turnTargetTicks)) { // need to account for negative
       stopMove();
       break;
     }
@@ -475,13 +475,14 @@ void forwardRoutine() {
     rightSpeedPID.Compute();
     motorsForward();  // to update the motors
     cli();
-    long leftEncoderCounterCopy = leftEncoderCounter;
+    leftEncoderCounterCopy = leftEncoderCounter;
+    rightEncoderCounterCopy = rightEncoderCounter;
     sei();
-    if (abs(leftEncoderCounter) > abs(distanceTargetTicks)) {
-      stopMove();
+    if (abs(leftEncoderCounter) > abs(distanceTargetTicks) || abs(rightEncoderCounterCopy) > abs(distanceTargetTicks)) {
       break;
     }
   }
+  stopMove();
   leftSpeedPID.SetMode(MANUAL);
   rightSpeedPID.SetMode(MANUAL);
 }
@@ -510,11 +511,11 @@ void motorsTurn() {
 }
 
 void motorsForward() {
-  leftPWM = baseSpeedPWM + (byte)leftPWMOutput;
-  rightPWM = baseSpeedPWM + (byte)rightPWMOutput;
-  digitalWrite(pinLeftMotorDirection, HIGH);
+  leftPWM = baseSpeedPWM + (int)leftPWMOutput;
+  rightPWM = baseSpeedPWM + (int)rightPWMOutput;
+  digitalWrite(pinLeftMotorDirection, LOW);
   analogWrite(pinLeftMotorPWM, leftPWM);
-  digitalWrite(pinRightMotorDirection, HIGH);
+  digitalWrite(pinRightMotorDirection, LOW);
   analogWrite(pinRightMotorPWM, rightPWM);
 }
 
@@ -540,6 +541,12 @@ void calculateTurn() {
   float turnDistance = (float)leftEncoderCounterCopy * distancePerTick;
   // (turnDistance / turningCircleCircumference) gives the proportion of the full turning circle circumference that the wheel has travelled
   angleTurned = (turnDistance / turningCircleCircumference) * 2 * PI;
+  Serial.print(leftEncoderCounterCopy);Serial.println('\t');
+  Serial.print(rightEncoderCounterCopy);Serial.println('\t');
+  Serial.print(distancePerTick);Serial.println('\t');
+  Serial.print(turnDistance);Serial.println('\t');
+  Serial.println(turningCircleCircumference);Serial.println('\t');
+  Serial.println(angleTurned);Serial.println('\n');
 }
 
 void calculateDistance() {
