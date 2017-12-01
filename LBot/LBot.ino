@@ -138,15 +138,16 @@ void loop() {
     Serial.print(nextMoveForward); Serial.print('\n');
 
     if ( abs(nextTurnAngle) < 0.01 && abs(nextMoveForward) < 0.01) {
-      angleTurned = 0.0;
-      distanceMoved = 0.0;
+      theta = 0.0;
+      x = 0.0;
+      y = 0.0;
     }
     else {
       setTargets();
       clearMovementAccumulators();
       resetCounters();
       turnRoutine();
-      calcOverallMovement();
+      //      calcOverallMovement();
       Serial.print(F("Turn/Move:")); Serial.print('\t');
       Serial.print(angleTurned); Serial.print('\t');
       Serial.print(distanceMoved); Serial.print('\n');
@@ -158,7 +159,7 @@ void loop() {
       delay(500);
       resetCounters();
       forwardRoutine();
-      calcOverallMovement();
+
       Serial.print(F("Turn/Move:")); Serial.print('\t');
       Serial.print(angleTurned); Serial.print('\t');
       Serial.print(distanceMoved); Serial.print('\n');
@@ -168,7 +169,9 @@ void loop() {
       Serial.print(y); Serial.print('\n');
       Serial.print('\n');
     }
+    calcOverallMovement();
     sendMotionData();
+    delay(500);
     takeRangeReadings();
     sendSensorData();
     moveRequestReceived = false;
@@ -325,20 +328,6 @@ void processCommandType3 (char* elementBuffer) {
 // FOR SENDING ///////////////////////////////////////
 //////////////////////////////////////////////////////
 
-//void sendMotionData() {
-//  static int inc = 0;
-//  tm = millis();
-//  // to BT module
-//  Serial3.print('1'); Serial3.print('\t');
-//  Serial3.print(tm); Serial3.print('\t');
-//  Serial3.print(inc); Serial3.print('\t');
-//  Serial3.print(angleTurned, 5); Serial3.print('\t');
-//  Serial3.print(distanceMoved);
-//  Serial3.print('\n');
-//  inc += 1;
-//  //  Serial.println(angleTurned,5);
-//}
-
 void sendMotionData() {
   static int inc = 0;
   tm = millis();
@@ -350,7 +339,6 @@ void sendMotionData() {
   Serial3.print(x, 5); Serial3.print('\t');
   Serial3.print(y, 5); Serial3.print('\n');
   inc += 1;
-  //  Serial.println(angleTurned,5);
 }
 
 
@@ -478,27 +466,27 @@ void turnRoutine() {
   leftSpeedPID.SetMode(AUTOMATIC);
   rightSpeedPID.SetMode(AUTOMATIC);
   prepareForTurn();
-  speedCalcLast = millis();
-  motorsTurn();
+
   unsigned long timeoutStart = millis();
+  speedCalcLast = millis();
+//  motorsTurn(); // could I remove this actually and just let it start in the loop?
   while (millis() - timeoutStart  < motorTimeout) {
+    savePreviousEncoderCounts();
+    copyLatestEncoderCounts();
+    if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks) || abs(rightEncoderCounterCopy) > abs(turnTargetTicks)) { // need to account for negative
+      break;
+    }
     calculateSpeed();
     leftSpeedPID.Compute();
     rightSpeedPID.Compute();
     motorsTurn();
-    //    cli();
-    //    leftEncoderCounterCopy = leftEncoderCounter;
-    //    rightEncoderCounterCopy = rightEncoderCounter;
-    //    sei();
-    //    accumulateMovement();
-    if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks) || abs(rightEncoderCounterCopy) > abs(turnTargetTicks)) { // need to account for negative
-      break;
-    }
+    accumulateMovement();
   }
   stopMove();
-  calculateSpeed(); // to capture last bit of movement
   leftSpeedPID.SetMode(MANUAL);
   rightSpeedPID.SetMode(MANUAL);
+  copyLatestEncoderCounts();
+  accumulateMovement(); // to capture last bit of movement
 }
 
 void forwardRoutine() {
@@ -506,29 +494,29 @@ void forwardRoutine() {
   rightSpeedSetpoint = baseForwardSpeed;
   leftSpeedPID.SetMode(AUTOMATIC);
   rightSpeedPID.SetMode(AUTOMATIC);
-  speedCalcLast = millis();
-  motorsForward();
+
   unsigned long timeoutStart = millis();
+  speedCalcLast = millis();
+//  motorsForward(); // could I remove this actually and just let it start in the loop?
   while (millis() - timeoutStart  < motorTimeout) {
+    savePreviousEncoderCounts();
+    copyLatestEncoderCounts();
+    if (abs(leftEncoderCounterCopy) > abs(distanceTargetTicks) || abs(rightEncoderCounterCopy) > abs(distanceTargetTicks)) {
+      break;
+    }
     calculateSpeed();
     leftSpeedPID.Compute();
     rightSpeedPID.Compute();
     motorsForward();  // to update the motors
-    //    cli();
-    //    leftEncoderCounterCopy = leftEncoderCounter;
-    //    rightEncoderCounterCopy = rightEncoderCounter;
-    //    sei();
-    //    accumulateMovement();
-    // I am missing capturing the motion that occured here in the last step
-    //    i.e. when below condition is true
-    if (abs(leftEncoderCounterCopy) > abs(distanceTargetTicks) || abs(rightEncoderCounterCopy) > abs(distanceTargetTicks)) {
-      break;
-    }
+    accumulateMovement();
+
   }
   stopMove();
-  calculateSpeed(); // to capture last bit of movement
   leftSpeedPID.SetMode(MANUAL);
   rightSpeedPID.SetMode(MANUAL);
+  copyLatestEncoderCounts();
+  accumulateMovement(); // to capture last bit of movement
+
 }
 
 void printCounters() {
@@ -612,7 +600,7 @@ void calculateDistance() {
 }
 
 
-void calculateSpeed() {
+void calculateSpeedOLD() {
   // units of speed are ticks per millisecond
   speedCalcInterval = millis() - speedCalcLast;
   if (speedCalcInterval >= 10) {
@@ -636,6 +624,32 @@ void calculateSpeed() {
   }
 }
 
+void calculateSpeed() {
+  // units of speed are ticks per millisecond
+  unsigned long now = millis();
+  speedCalcInterval = now - speedCalcLast;
+  leftSpeedMeasured = (leftEncoderCounterCopy - leftTicksLast) / (float)speedCalcInterval;
+  rightSpeedMeasured = (rightEncoderCounterCopy - rightTicksLast) / (float)speedCalcInterval;
+  // for PID - could have in forwardRoutine after checking that the PID will actually update
+  leftSpeedAbsolute = abs(leftSpeedMeasured);
+  rightSpeedAbsolute = abs(rightSpeedMeasured);
+  speedCalcLast = now;
+}
+
+void copyLatestEncoderCounts() {
+  cli();
+  leftEncoderCounterCopy = leftEncoderCounter;
+  rightEncoderCounterCopy = rightEncoderCounter;
+  sei();
+}
+
+// I don't like the name of this
+void savePreviousEncoderCounts() {
+  leftTicksLast = leftEncoderCounterCopy;
+  rightTicksLast = rightEncoderCounterCopy;
+}
+
+
 // I have to calculate the speed anyway (to use in the PID controller)
 // so reuse those numbers
 void accumulateMovement() {
@@ -655,7 +669,7 @@ void accumulateMovement() {
 void calcOverallMovement() {
   // final heading is based on how much it turned overall
   // distance is just based on end point (don't care about path)
-  angleTurned = fmod(theta,TWO_PI);
+  angleTurned = fmod(theta, TWO_PI);
   distanceMoved = sqrt(x * x + y * y);  // in millimetres
 }
 
