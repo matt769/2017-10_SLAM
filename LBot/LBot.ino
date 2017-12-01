@@ -150,6 +150,10 @@ void loop() {
       Serial.print(F("Turn/Move:")); Serial.print('\t');
       Serial.print(angleTurned); Serial.print('\t');
       Serial.print(distanceMoved); Serial.print('\n');
+      Serial.print("Total"); Serial.print('\t');
+      Serial.print(theta); Serial.print('\t');
+      Serial.print(x); Serial.print('\t');
+      Serial.print(y); Serial.print('\n');
 
       delay(500);
       resetCounters();
@@ -158,6 +162,10 @@ void loop() {
       Serial.print(F("Turn/Move:")); Serial.print('\t');
       Serial.print(angleTurned); Serial.print('\t');
       Serial.print(distanceMoved); Serial.print('\n');
+      Serial.print("Total"); Serial.print('\t');
+      Serial.print(theta); Serial.print('\t');
+      Serial.print(x); Serial.print('\t');
+      Serial.print(y); Serial.print('\n');
       Serial.print('\n');
     }
     sendMotionData();
@@ -623,15 +631,17 @@ void accumulateMovement() {
   Dc = (Dl + Dr) / 2.0;
   dTheta = (Dr - Dl) / wheelBase;
 
-  x += Dc * sin(theta);
-  y += Dc * cos(theta);
-  Serial.println(theta);
-  theta = fmod(theta + dTheta, TWO_PI);
+  x += Dc * cos(theta);
+  y += Dc * sin(theta);
+  //  Serial.println(theta);
+  theta += dTheta;
 }
 
 
 void calcOverallMovement() {
-  angleTurned = atan2(y, x);
+  // final heading is based on how much it turned overall
+  // distance is just based on end point (don't care about path)
+  angleTurned = fmod(theta,TWO_PI);
   distanceMoved = sqrt(x * x + y * y);  // in millimetres
 }
 
