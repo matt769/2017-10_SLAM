@@ -62,6 +62,11 @@ newLandmarkCandidates = list()
 lx = 0.0	# distance to landmark
 ly = 0.0	# distance to landmark
 
+#charting
+chartMin = -500
+chartMax = 500
+
+
 #program state
 robotReadyForNewCommand = False
 waitingForRobotResponse = False
@@ -245,7 +250,11 @@ def processNewMotionData():
 ######################################
 # MEASUREMENT UPDATE #################
 ######################################
+
+# *** split this into separate functions ***
 def processNewSensorData():
+	global chartMin
+	global chartMax
 	print "Received sensor data:",sensorReadings
 	allSensorReadings.extend(sensorReadings)	# keep full list (this will need to be changed in future)
 	#print len(allSensorReadings)
@@ -253,10 +262,14 @@ def processNewSensorData():
 	xp, yp = convertReadingsForPlot(readingPositions)
 	plt.scatter(xp, yp, c = 'b', marker = '.')
 	plt.pause(0.001)
-
+	chartMin = min(chartMin,min(xp),min(yp))-500
+	chartMax = max(chartMax,max(xp),max(yp))+500
+	plt.axis([chartMin,chartMax,chartMin,chartMax])
+	plt.pause(0.001)
+	
 	# check for corner and show if found
 	cornerFound, cornerPositions, cornerPositionsIdx = getCorners(readingPositions,sensorReadings)
-	print cornerFound, cornerPositions
+	#print cornerFound, cornerPositions
 	for corner in cornerPositions:
 		plt.plot(corner[0],corner[1],'r.')	# show corner if found
 		plt.pause(0.001)
@@ -338,7 +351,8 @@ while True:
 		# I need to know which sensor reading was associated with each landmark found
 		# pass motion, plus list of landmark indices and distances
 		robotPosition, landmarkPositions = runSlam(motionForSlam,measurementsForSlam)
-		print robotPosition, landmarkPositions
+		print "robotPosition:\n", robotPosition
+		print "landmarkPositions:\n", landmarkPositions
 		
 		# UPDATE HEADING
 		# based on updated position and angle/distance to known landmark
