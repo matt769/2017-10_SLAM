@@ -325,6 +325,20 @@ void processCommandType3 (char* elementBuffer) {
 // FOR SENDING ///////////////////////////////////////
 //////////////////////////////////////////////////////
 
+//void sendMotionData() {
+//  static int inc = 0;
+//  tm = millis();
+//  // to BT module
+//  Serial3.print('1'); Serial3.print('\t');
+//  Serial3.print(tm); Serial3.print('\t');
+//  Serial3.print(inc); Serial3.print('\t');
+//  Serial3.print(angleTurned, 5); Serial3.print('\t');
+//  Serial3.print(distanceMoved);
+//  Serial3.print('\n');
+//  inc += 1;
+//  //  Serial.println(angleTurned,5);
+//}
+
 void sendMotionData() {
   static int inc = 0;
   tm = millis();
@@ -332,9 +346,9 @@ void sendMotionData() {
   Serial3.print('1'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
-  Serial3.print(angleTurned, 5); Serial3.print('\t');
-  Serial3.print(distanceMoved);
-  Serial3.print('\n');
+  Serial3.print(theta, 5); Serial3.print('\t');
+  Serial3.print(x, 5); Serial3.print('\t');
+  Serial3.print(y, 5); Serial3.print('\n');
   inc += 1;
   //  Serial.println(angleTurned,5);
 }

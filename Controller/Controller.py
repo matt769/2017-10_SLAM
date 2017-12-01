@@ -52,8 +52,10 @@ globalPosition = (0.0, 0.0)
 globalHeading = 0.0
 angleTurned = 0.0
 distanceMoved = 0.0
-dx = 0.0
-dy = 0.0
+dgx = 0.0	#global coords
+dgy = 0.0	#global coords
+dlx = 0.0	#local coords
+dly = 0.0	#local coords
 
 # map state
 landmarksInUse = list()		# index = (position, observedCount)
@@ -167,13 +169,24 @@ def splitAndRoute(str):
 def parseMotionPackage(data):
 	# add sense checks and exception handling
 	global angleTurned
-	global distanceMoved
+	global dlx
+	global dly
 	angleTurned = float(data[0])
-	distanceMoved = float(data[1])
-	#print angleTurned, distanceMoved
+	dlx = float(data[1])
+	dly = float(data[2])
+	#print angleTurned, dlx, dly
 	return True	#default return True until there is error checking
 	
 
+def parseMotionPackageOLD(data):
+	# add sense checks and exception handling
+	global angleTurned
+	global distanceMoved
+	angleTurned = float(data[0])
+	distanceMoved = float(data[1])
+	return True	#default return True until there is error checking
+	
+	
 def parseSensorPackage(data):
 	# add sense checks and exception handling
 	global sensorReadings
@@ -187,10 +200,23 @@ def parseControlPackage(data):
 	return True	#default return True until there is error checking
 	
 
-def updatePositionAfterMovement(angleTurned, distanceMoved):
+def updatePositionAfterMovementOLD(angleTurned, distanceMoved):
 	heading = (globalHeading + angleTurned) % (math.pi * 2)
 	x = globalPosition[0] + distanceMoved * math.sin(heading)
 	y = globalPosition[1] + distanceMoved * math.cos(heading)
+	return (x, y), heading
+
+
+def updatePositionAfterMovement(angleTurned, dlx, dly):
+	global dgx
+	global dgy
+	# for the global change, rotate the local change by the current heading of the robot
+	dgx = dlx*math.cos(globalHeading) - dly*math.sin(globalHeading)
+	dgy = dlx*math.sin(globalHeading) + dly*math.cos(globalHeading)
+	x = globalPosition[0] + dgx
+	y = globalPosition[1] + dgy
+	# and then udpdate the heading of the robot
+	heading = (globalHeading + angleTurned) % (math.pi * 2)
 	return (x, y), heading
 
 
@@ -234,14 +260,13 @@ def processNewMotionData():
 	global globalPosition
 	global globalHeading
 	global positionHistory
-	global dx
-	global dy
-	print "Received motion data:",angleTurned, distanceMoved
-	globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, distanceMoved)
+	global dgx
+	global dgy
+	print "Received motion data:",angleTurned, dlx, dly
+	globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, dlx, dly)
 	positionHistory.append((globalPosition,globalHeading))
 	#addition to incorporate slam
-	dx = distanceMoved * math.sin(globalHeading)
-	dy = distanceMoved * math.cos(globalHeading)
+	# dgx, dgy already updated during updatePositionAfterMovement()
 	print "New position:", globalPosition, globalHeading
 
 
@@ -336,7 +361,7 @@ while True:
 				plt.pause(0.001)
 		
 		# RUN SLAM
-		motionForSlam = (dx,dy)
+		motionForSlam = (dgx,dgy)
 		#measurements = landmark idx, distance x, distance y
 		measurementsForSlam = list()
 		for sensorIdx, landmarkIdx in sensedLandmarks:
