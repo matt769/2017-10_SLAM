@@ -22,7 +22,7 @@ import math
 
 
 landmarkCountThreshold = 3
-landmarkDistanceThreshold = 50.0
+landmarkDistanceThreshold = 100.0	# millimetres
 
 #landmarksInUse = dict()		# index = (position, observedCount)
 #landmarksPotential = dict	# index = (position, observedCount)
@@ -49,20 +49,22 @@ def checkIfLandmarkExists(pointToCheck, checkList, threshold = landmarkDistanceT
 	if minDist <= threshold:
 		exists = True
 		landmarkIdx = minPointIdx
-	return exists, landmarkIdx
+	return exists, landmarkIdx, minDist
 
 
 def processSensedLandmark(landmarksInUse, landmarksPotential, pointToCheck, pointIdx):
 	landmarkIdx = None
+	dist = None
 	# check if point is already on landmark list
-	existsInUse, landmarkIdx = checkIfLandmarkExists(pointToCheck,landmarksInUse)
+	existsInUse, landmarkIdx, dist = checkIfLandmarkExists(pointToCheck,landmarksInUse)
 	# update count (may not be required)
 	if existsInUse:
+		#print existsInUse, landmarkIdx, dist 
 		position, count = landmarksInUse[landmarkIdx][0],landmarksInUse[landmarkIdx][1]
 		landmarksInUse[landmarkIdx] = position, count+1
 		#print "landmark exists:", position, count
 	else:
-		existsPotential, positionIdx = checkIfLandmarkExists(pointToCheck,landmarksPotential)
+		existsPotential, positionIdx, dist = checkIfLandmarkExists(pointToCheck,landmarksPotential)
 		if existsPotential:
 			position, count = landmarksPotential[positionIdx][0],landmarksPotential[positionIdx][1]
 			#print "potential landmark exists:", position, count
@@ -76,14 +78,33 @@ def processSensedLandmark(landmarksInUse, landmarksPotential, pointToCheck, poin
 			position = pointToCheck
 			count = 1
 			landmarksPotential.append((pointToCheck,count))
-	return landmarkIdx
+	return landmarkIdx, dist
 
 # need to keep the idx as this will be used to tie the landmark back to a specific sensor reading
 def processAllLandmarks(landmarksInUse, landmarksPotential, allPoints, pointIdxs):
 	results = list()
 	for idx in range(len(allPoints)):
 		#print allPoints[idx], pointIdxs[idx]
-		landmarkIdx = processSensedLandmark(landmarksInUse, landmarksPotential, allPoints[idx], pointIdxs[idx])
+		landmarkIdx, dist = processSensedLandmark(landmarksInUse, landmarksPotential, allPoints[idx], pointIdxs[idx])
 		if landmarkIdx is not None:
-			results.append((pointIdxs[idx], landmarkIdx))	# sensor index, and landmark index
-	return results
+			results.append((pointIdxs[idx], landmarkIdx, dist))	# sensor index, and landmark index
+	
+	# if more than one point has been matched to the same landmark, pick the closest one
+	matchedLandmarks = [a[1] for a in results]
+	matchedLandmarks = list(set(matchedLandmarks))
+	#print "matchedLandmarks:", matchedLandmarks
+	resultsUnique = list()
+	for landmarkIdx in matchedLandmarks:
+		minDist = landmarkDistanceThreshold
+		minDistPointIdx = -1
+		for resultPointIdx, resultLandmarkIdx, resultDistance in results:
+			if landmarkIdx != resultLandmarkIdx: continue
+			#print landmarkIdx
+			#print resultPointIdx, resultLandmarkIdx, resultDistance
+			if resultDistance <= minDist:
+				minDist = resultDistance
+				minDistPointIdx = resultPointIdx
+		#print "min point:", minDistPointIdx, landmarkIdx, minDist
+		resultsUnique.append((minDistPointIdx, landmarkIdx))
+	
+	return resultsUnique

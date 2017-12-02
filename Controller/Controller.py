@@ -79,6 +79,7 @@ needNewUserInput = False
 readingAnglesDegrees = range(80,-81,-1)
 readingAnglesRadians = [x*math.pi/180 for x in readingAnglesDegrees]
 sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
+sensedPositions = list()
 allSensorReadings = list()
 positionHistory = list()
 
@@ -120,7 +121,7 @@ def send():
 	global robotReadyForNewCommand
 	#if time.clock() - lastSent > sendFreq:
 	#if robotReadyForNewCommand:
-	turn, move = decideNextMove()
+	turn, move = decideNextMove3()
 	#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
 	package = "2" + "\t" + str(turn) + "\t" + str(move) + "\n"
 	#package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"
@@ -142,6 +143,10 @@ def listenAndReceive(timeout=1):
 			break
 	return dataReceived, inputString
 
+
+######################################
+# HANDLE INPUT DATA ##################
+######################################
 
 # if data is parsed/updated successfully then this function will return the data packet type
 # if any failure then it will return 0
@@ -198,13 +203,24 @@ def parseSensorPackage(data):
 def parseControlPackage(data):
 	# add sense checks and exception handling
 	return True	#default return True until there is error checking
-	
 
-def updatePositionAfterMovementOLD(angleTurned, distanceMoved):
-	heading = (globalHeading + angleTurned) % (math.pi * 2)
-	x = globalPosition[0] + distanceMoved * math.sin(heading)
-	y = globalPosition[1] + distanceMoved * math.cos(heading)
-	return (x, y), heading
+
+######################################
+# PROCESS MOTION DATA ################
+######################################
+
+def processNewMotionData():
+	global globalPosition
+	global globalHeading
+	global positionHistory
+	global dgx
+	global dgy
+	print "Received motion data:",angleTurned, dlx, dly
+	globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, dlx, dly)
+	positionHistory.append((globalPosition,globalHeading))
+	#addition to incorporate slam
+	# dgx, dgy already updated during updatePositionAfterMovement()
+	print "New position:", globalPosition, globalHeading
 
 
 def updatePositionAfterMovement(angleTurned, dlx, dly):
@@ -220,60 +236,8 @@ def updatePositionAfterMovement(angleTurned, dlx, dly):
 	return (x, y), heading
 
 
-def calculateSensorReadingPositions(angles, distances):
-	readingPositions = []
-	for idx in range(len(distances)):#
-		# add sense check
-		if distances[idx] <= 0.02:
-			readingPositions.append(None)
-			continue
-		positionHeading = (globalHeading + angles[idx]) % (math.pi * 2)
-		x = globalPosition[0] + distances[idx] * math.sin(positionHeading)
-		y = globalPosition[1] + distances[idx] * math.cos(positionHeading)
-		#print x,y,positionHeading
-		readingPositions.append((x,y))
-	#print readingPositions
-	return readingPositions
-
-
-def updatePositionAfterSense():
-	# this will be one of the final functions to implement
-	return False
-
-
-# for charting
-def convertReadingsForPlot(data):
-	x = list()
-	y = list()
-	for idx in range(len(data)):
-		if data[idx] is None:
-			continue
-		x.append(data[idx][0])
-		y.append(data[idx][1])
-	return x,y
-
-
 ######################################
-# MOTION UPDATE ######################
-######################################
-def processNewMotionData():
-	global globalPosition
-	global globalHeading
-	global positionHistory
-	global dgx
-	global dgy
-	print "Received motion data:",angleTurned, dlx, dly
-	globalPosition, globalHeading = updatePositionAfterMovement(angleTurned, dlx, dly)
-	positionHistory.append((globalPosition,globalHeading))
-	#addition to incorporate slam
-	# dgx, dgy already updated during updatePositionAfterMovement()
-	print "New position:", globalPosition, globalHeading
-
-
-
-
-######################################
-# MEASUREMENT UPDATE #################
+# PROCESS MEASUREMENT DATA ###########
 ######################################
 
 # *** split this into separate functions ***
@@ -287,8 +251,8 @@ def processNewSensorData():
 	xp, yp = convertReadingsForPlot(readingPositions)
 	plt.scatter(xp, yp, c = 'b', marker = '.')
 	plt.pause(0.001)
-	chartMin = min(chartMin,min(xp),min(yp))-500
-	chartMax = max(chartMax,max(xp),max(yp))+500
+	chartMin = min(chartMin,min(xp),min(yp))
+	chartMax = max(chartMax,max(xp),max(yp))
 	plt.axis([chartMin,chartMax,chartMin,chartMax])
 	plt.pause(0.001)
 	
@@ -300,6 +264,79 @@ def processNewSensorData():
 		plt.pause(0.001)
 	return cornerPositions, cornerPositionsIdx
 
+
+def calculateSensorReadingPositions(angles, distances):
+	global sensedPositions
+	readingPositions = []
+	for idx in range(len(distances)):#
+		# add sense check
+		if distances[idx] <= 0.02:
+			readingPositions.append(None)
+			continue
+		positionHeading = (globalHeading + angles[idx]) % (math.pi * 2)
+		x = globalPosition[0] + distances[idx] * math.cos(positionHeading)
+		y = globalPosition[1] + distances[idx] * math.sin(positionHeading)
+		#print x,y,positionHeading
+		readingPositions.append((x,y))
+	sensedPositions = readingPositions	#adding this in here so I can use it elsewhere
+	#print readingPositions
+	return readingPositions
+
+######################################
+# OTHER ##############################
+######################################
+
+def updateHeading():
+	return newHeading
+
+
+
+
+
+
+
+######################################
+# PLOT HELPER ########################
+######################################
+
+# for charting
+def convertReadingsForPlot(data):
+	x = list()
+	y = list()
+	for idx in range(len(data)):
+		if data[idx] is None:
+			continue
+		x.append(data[idx][0])
+		y.append(data[idx][1])
+	return x,y
+
+def plotRobotPositionAfterMotion():
+	plt.plot(globalPosition[0],globalPosition[1],'gs')
+	plt.pause(0.001)
+	return
+
+
+
+def plotRobotPositionAfterSlam():
+	plt.plot(globalPosition[0],globalPosition[1],'rp')
+	plt.pause(0.001)
+	return
+
+
+def plotLandmarks():
+	x = [a[0][0] for a in landmarksInUse]
+	y = [a[0][1] for a in landmarksInUse]
+	plt.plot(x,y,'yo')
+	plt.pause(0.001)
+	return
+
+def replot():
+	plt.clf()
+	plotLandmarks()
+	plotRobotPositionAfterSlam()
+	plt.axis([chartMin,chartMax,chartMin,chartMax])
+	plt.pause(0.001)
+	return
 
 
 
@@ -348,6 +385,9 @@ while True:
 
 	if robotResponseReceived:
 		processNewMotionData()
+		# PLOT WHERE ROBOT IS BASED ON MOTION ONLY
+		plotRobotPositionAfterMotion()
+		
 		newLandmarkCandidates, newLandmarkCandidatesIdx  = processNewSensorData()
 
 		# DEAL WITH LANDMARKS
@@ -369,8 +409,8 @@ while True:
 			# don't want the global coords that I have previously calculated
 			reading = sensorReadings[sensorIdx]
 			angle = readingAnglesRadians[sensorIdx]
-			lx = reading*math.sin(angle)
-			ly = reading*math.cos(angle)
+			lx = reading*math.cos(angle)
+			ly = reading*math.sin(angle)
 			measurementsForSlam.append((landmarkIdx, (lx, ly)))
 			#print landmarkIdx, lx, ly
 		# I need to know which sensor reading was associated with each landmark found
@@ -378,9 +418,60 @@ while True:
 		robotPosition, landmarkPositions = runSlam(motionForSlam,measurementsForSlam)
 		print "robotPosition:\n", robotPosition
 		print "landmarkPositions:\n", landmarkPositions
+		# UPDATE ROBOT POSITION
+		globalPosition = (robotPosition.item(0), robotPosition.item(1))
+		#UPDATE LANDMARK POSITIONS
+		# this would be simpler if I didn't save the count (which probably isn't required)
+		#print landmarksInUse
+		tmpLandmarksInUse = list()
+		for landmarkIdx in range(len(landmarkPositions)/2):
+			x, y = landmarkPositions.item(landmarkIdx*2), landmarkPositions.item(landmarkIdx*2+1)
+			count = landmarksInUse[landmarkIdx][1]
+			tmpLandmarksInUse.append(((x,y),count))
+		landmarksInUse = tmpLandmarksInUse
+		#print landmarksInUse
+		
+		# PLOT WHERE ROBOT IS BASED ON SLAM OUTPUT
+		plotRobotPositionAfterSlam()
+		
+		# REPLOT LANDMARKS?
+		
+		#replot()
+		# need to also replot the individual readings
+		# but need to adjust these given the landmarks have moved
+		# will need to record their relationship to landmarks
 		
 		# UPDATE HEADING
 		# based on updated position and angle/distance to known landmark
+		# I don't know which reading has produced that landmark - need to modify some of the previous functions
+		#	in order to preserve that information
+		
+		# move to separate function
+		if len(sensedLandmarks) > 0:
+			count = 0.0
+			calculatedHeading = 0.0
+			vx = 0
+			vy = 0
+			for sensorIdx, landmarkIdx in sensedLandmarks:
+				#print "calculate heading"
+				# landmark is at global angle...
+				#print globalPosition, landmarksInUse[landmarkIdx]
+				dx = landmarksInUse[landmarkIdx][0][0] - globalPosition[0]
+				dy = landmarksInUse[landmarkIdx][0][1] - globalPosition[1]
+				atGlobalAngle = math.atan2(dy,dx)
+				atLocalAngle = readingAnglesRadians[sensorIdx]
+				# therefore robot heading is...
+				calculatedHeading = atGlobalAngle - atLocalAngle
+				#print atGlobalAngle, atLocalAngle,calculatedHeading
+				# accumulate vectors
+				vx += math.cos(calculatedHeading)
+				vy += math.sin(calculatedHeading)
+				count += 1
+			vx /= count
+			vy /= count
+			averageAngle = math.atan2(vy,vx)
+			print "calculated heading:", averageAngle
+			globalHeading = averageAngle
 		
 		
 		robotResponseReceived = False

@@ -466,10 +466,8 @@ void turnRoutine() {
   leftSpeedPID.SetMode(AUTOMATIC);
   rightSpeedPID.SetMode(AUTOMATIC);
   prepareForTurn();
-
   unsigned long timeoutStart = millis();
   speedCalcLast = millis();
-//  motorsTurn(); // could I remove this actually and just let it start in the loop?
   while (millis() - timeoutStart  < motorTimeout) {
     savePreviousEncoderCounts();
     copyLatestEncoderCounts();
@@ -494,10 +492,8 @@ void forwardRoutine() {
   rightSpeedSetpoint = baseForwardSpeed;
   leftSpeedPID.SetMode(AUTOMATIC);
   rightSpeedPID.SetMode(AUTOMATIC);
-
   unsigned long timeoutStart = millis();
   speedCalcLast = millis();
-//  motorsForward(); // could I remove this actually and just let it start in the loop?
   while (millis() - timeoutStart  < motorTimeout) {
     savePreviousEncoderCounts();
     copyLatestEncoderCounts();
@@ -663,6 +659,7 @@ void accumulateMovement() {
   y += Dc * sin(theta);
   //  Serial.println(theta);
   theta += dTheta;
+//  Serial.println("x");
 }
 
 
