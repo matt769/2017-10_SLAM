@@ -22,7 +22,6 @@ const byte SENSOR_PACKET_ID = 2;
 const byte CONTROL_PACKET_ID = 3;
 
 // for sending output
-unsigned long lastSent = 0;
 unsigned long tm;
 
 // distance readings
@@ -36,15 +35,12 @@ const byte servoDelay = 5 * angleIncrement; // allowing 5ms per degree
 
 
 void setup() {
-  randomSeed(analogRead(0));
-
   Serial.begin(115200); // to connect to computer
   Serial3.begin(115200); // to connect to BT module
   setupServo();
   Wire.begin();
   setupRangeFinder();
   setupMotorsAndEncoders();
-
   leftSpeedPID.SetSampleTime(50);
   rightSpeedPID.SetSampleTime(50);
   leftSpeedPID.SetMode(MANUAL);
@@ -52,54 +48,43 @@ void setup() {
   // PID limits are 0 to 255 by default
   leftSpeedPID.SetOutputLimits(-50, 50);
   rightSpeedPID.SetOutputLimits(-50, 50);
-
   Serial.println(F("Setup complete"));
 } // END LOOP
 
 
-
 void loop() {
-
   readSerialToBuffer();
   if (newDataReceived) parseData();
-
   if (moveRequestReceived) {
     Serial.print(newCommandType); Serial.print('\t');
     Serial.print(nextTurnAngle); Serial.print('\t');
     Serial.print(nextMoveForward); Serial.print('\n');
-
     setTargets();
     clearMovementAccumulators();
     resetCounters();
     if ( abs(nextTurnAngle) > 0.01) {
       turnRoutine();
     }
-
-    //      calcOverallMovement();
-    Serial.print(F("Turn/Move:")); Serial.print('\t');
-    Serial.print(angleTurned); Serial.print('\t');
-    Serial.print(distanceMoved); Serial.print('\n');
-    Serial.print("Total"); Serial.print('\t');
-    Serial.print(theta); Serial.print('\t');
-    Serial.print(x); Serial.print('\t');
-    Serial.print(y); Serial.print('\n');
-
+//    Serial.print(F("Turn/Move:")); Serial.print('\t');
+//    Serial.print(angleTurned); Serial.print('\t');
+//    Serial.print(distanceMoved); Serial.print('\n');
+//    Serial.print("Total"); Serial.print('\t');
+//    Serial.print(theta); Serial.print('\t');
+//    Serial.print(x); Serial.print('\t');
+//    Serial.print(y); Serial.print('\n');
     delay(500);
     resetCounters();
-
     if (abs(nextMoveForward) > 0.01) {
       forwardRoutine();
     }
-
-    Serial.print(F("Turn/Move:")); Serial.print('\t');
-    Serial.print(angleTurned); Serial.print('\t');
-    Serial.print(distanceMoved); Serial.print('\n');
-    Serial.print("Total"); Serial.print('\t');
-    Serial.print(theta); Serial.print('\t');
-    Serial.print(x); Serial.print('\t');
-    Serial.print(y); Serial.print('\n');
-    Serial.print('\n');
-
+//    Serial.print(F("Turn/Move:")); Serial.print('\t');
+//    Serial.print(angleTurned); Serial.print('\t');
+//    Serial.print(distanceMoved); Serial.print('\n');
+//    Serial.print("Total"); Serial.print('\t');
+//    Serial.print(theta); Serial.print('\t');
+//    Serial.print(x); Serial.print('\t');
+//    Serial.print(y); Serial.print('\n');
+//    Serial.print('\n');
     delay(500);
     calcOverallMovement();
     sendMotionData();
@@ -115,7 +100,6 @@ void loop() {
 //////////////////////////////////////////////////////
 // FOR RANGE SENSING /////////////////////////////////
 //////////////////////////////////////////////////////
-
 
 void takeRangeReadings() {
   //  byte counter = 0;
@@ -163,7 +147,6 @@ void readSerialToBuffer() {
     receivingInProgress = false;
   }
 }
-
 
 // general function that will perform basic sense check on the data
 // determine what command type it is, and send to a command specific parser
@@ -214,7 +197,6 @@ void parseData() {
   }
 }
 
-
 // standard command to move a set distance and read the sensors
 void processCommandType1 (char* element) {
   nextTurnAngle = defaultTurnAngle;
@@ -241,7 +223,6 @@ void processCommandType2 (char* element) {
 void processCommandType3 (char* elementBuffer) {
   // not yet defined
 }
-
 
 //////////////////////////////////////////////////////
 // FOR SENDING ///////////////////////////////////////

@@ -18,12 +18,9 @@ byte leftPWMBase;
 byte rightPWMBase;
 float baseTurnSpeed = 1.0;
 float baseForwardSpeed = 1.0;
-const byte MOTOR_FORWARD = 1;
-const byte MOTOR_BACKWARD = 2;
-volatile int counter = 0;
 unsigned long motorTimeout = 5000;
 
-
+// PID and speed calculations
 float leftSpeedSetpoint, leftSpeedAbsolute, leftPWMOutput, rightSpeedSetpoint, rightSpeedAbsolute, rightPWMOutput;
 float Kp = 500, Ki = 0, Kd = 0;
 PID leftSpeedPID(&leftSpeedAbsolute, &leftPWMOutput, &leftSpeedSetpoint, Kp, Ki, Kd, DIRECT);
@@ -38,7 +35,7 @@ float defaultTurnAngle = 0.0;   // in degrees
 float defaultMoveForward = 200.0; // in millimeters
 bool moveRequestReceived = false; // set to true after receiving a command to move // set to false after movement is done
 
-// for recording movement
+// for calculating and recording movement
 const float wheelBase = 109.0; // in millimeters
 const float wheelBaseInverse = 1.0 / wheelBase;
 const float wheelRadius = 30.0; // in millimeters
@@ -50,20 +47,15 @@ const float distancePerTick = wheelCircumference / (float)encoderTicksPerRevolut
 long distanceTargetTicks = 0;  // after receiving a distance to travel, convert to encoder ticks for quicker calculation
 long turnTargetTicks = 0;
 float turningCircleCircumference = wheelBase * PI;
-bool inMotionForward = false;
-bool inMotionTurning = false;
 unsigned long speedCalcInterval;
 float leftSpeedMeasured;
 float rightSpeedMeasured;
-
-// new
 float v;  // velocity
 float w;  // angular velocity
 float theta = 0;  // to capture change in local heading
 float x = 0;  // to capture change in local x direction
 float y = 0;  // to capture change in local y direction
 float Dl, Dr, Dc, dTheta;
-
 
 
 void countLeftEncoder() {
@@ -126,7 +118,6 @@ void calculateSpeed() {
   speedCalcLast = now;
 }
 
-
 void motorsTurn() {
   // direction has already been set, PID is only controlling absolute speed
   leftPWM = leftPWMBase + (int)leftPWMOutput;
@@ -155,9 +146,6 @@ void setTargets() {
   float wheelDistanceToTravel = (nextTurnAngle / (2 * PI) ) * turningCircleCircumference;
   turnTargetTicks = (long)(wheelDistanceToTravel / distancePerTick);
 }
-
-
-
 
 // I have to calculate the speed anyway (to use in the PID controller) so reuse those numbers
 void accumulateMovement() {
@@ -263,6 +251,4 @@ void resetCounters() {
   leftTicksLast = 0;
   rightTicksLast = 0;
 }
-
-
 
