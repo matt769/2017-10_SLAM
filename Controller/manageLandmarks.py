@@ -22,7 +22,7 @@ import math
 
 
 landmarkCountThreshold = 3
-landmarkDistanceThreshold = 100.0	# millimetres
+landmarkDistanceThreshold = 150.0	# millimetres
 
 #landmarksInUse = dict()		# index = (position, observedCount)
 #landmarksPotential = dict	# index = (position, observedCount)

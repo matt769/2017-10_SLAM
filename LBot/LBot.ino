@@ -137,41 +137,42 @@ void loop() {
     Serial.print(nextTurnAngle); Serial.print('\t');
     Serial.print(nextMoveForward); Serial.print('\n');
 
-    if ( abs(nextTurnAngle) < 0.01 && abs(nextMoveForward) < 0.01) {
-      theta = 0.0;
-      x = 0.0;
-      y = 0.0;
-    }
-    else {
-      setTargets();
-      clearMovementAccumulators();
-      resetCounters();
+    setTargets();
+    clearMovementAccumulators();
+    resetCounters();
+    if ( abs(nextTurnAngle) > 0.01) {
       turnRoutine();
-      //      calcOverallMovement();
-      Serial.print(F("Turn/Move:")); Serial.print('\t');
-      Serial.print(angleTurned); Serial.print('\t');
-      Serial.print(distanceMoved); Serial.print('\n');
-      Serial.print("Total"); Serial.print('\t');
-      Serial.print(theta); Serial.print('\t');
-      Serial.print(x); Serial.print('\t');
-      Serial.print(y); Serial.print('\n');
-
-      delay(500);
-      resetCounters();
-      forwardRoutine();
-
-      Serial.print(F("Turn/Move:")); Serial.print('\t');
-      Serial.print(angleTurned); Serial.print('\t');
-      Serial.print(distanceMoved); Serial.print('\n');
-      Serial.print("Total"); Serial.print('\t');
-      Serial.print(theta); Serial.print('\t');
-      Serial.print(x); Serial.print('\t');
-      Serial.print(y); Serial.print('\n');
-      Serial.print('\n');
     }
+
+    //      calcOverallMovement();
+    Serial.print(F("Turn/Move:")); Serial.print('\t');
+    Serial.print(angleTurned); Serial.print('\t');
+    Serial.print(distanceMoved); Serial.print('\n');
+    Serial.print("Total"); Serial.print('\t');
+    Serial.print(theta); Serial.print('\t');
+    Serial.print(x); Serial.print('\t');
+    Serial.print(y); Serial.print('\n');
+
+    delay(500);
+    resetCounters();
+
+    if (abs(nextMoveForward) > 0.01) {
+      forwardRoutine();
+    }
+
+    Serial.print(F("Turn/Move:")); Serial.print('\t');
+    Serial.print(angleTurned); Serial.print('\t');
+    Serial.print(distanceMoved); Serial.print('\n');
+    Serial.print("Total"); Serial.print('\t');
+    Serial.print(theta); Serial.print('\t');
+    Serial.print(x); Serial.print('\t');
+    Serial.print(y); Serial.print('\n');
+    Serial.print('\n');
+
+    delay(500);
     calcOverallMovement();
     sendMotionData();
-    delay(500);
+    clearMovementAccumulators();
     takeRangeReadings();
     sendSensorData();
     moveRequestReceived = false;
@@ -654,12 +655,13 @@ void accumulateMovement() {
   Dr = (float)(rightEncoderCounterCopy - rightTicksLast) * distancePerTick;
   Dc = (Dl + Dr) / 2.0;
   dTheta = (Dr - Dl) / wheelBase;
+  Serial.println(dTheta,6);
 
   x += Dc * cos(theta);
   y += Dc * sin(theta);
   //  Serial.println(theta);
   theta += dTheta;
-//  Serial.println("x");
+  //  Serial.println("x");
 }
 
 

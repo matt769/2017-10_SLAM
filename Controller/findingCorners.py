@@ -5,7 +5,7 @@ import math
 ######################################
 
 segmentLength = 5
-angleThreshold = 0.8	# radians
+angleThreshold = 1.0	# radians
 missingReadingCountThreshold = 3	#how many missing readings required on one side to suggest a corner
 readingChangeThreshold = 100	# millimeters # somewhat based on sensor noise and scan resolution
 

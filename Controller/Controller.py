@@ -19,7 +19,7 @@ from findingCorners import *
 from manageLandmarks import *
 from slam import *
 
-port = 'COM6'
+port = 'COM7'
 baudrate = 115200
 timeoutNum = 0.2
 print "Settings can be configured in .py file"
@@ -101,19 +101,9 @@ sendFreq = 10	# in seconds
 defaultTurn = 0.0		# radians
 defaultMove = 200.0		# millimeters
 
-def decideNextMove2():
-	turn = random.randint(-100,100)/100.0
-	move = random.randint(300,500)
-	return turn, move
-	
-def decideNextMove3():
-	turn = 0.0
-	move = 0.0
-	return turn, move
-
 def decideNextMove():
-	turn = 1.57
-	move = 200.0
+	turn = 0.0
+	move = 50.0
 	return turn, move
 
 def send():
@@ -121,7 +111,7 @@ def send():
 	global robotReadyForNewCommand
 	#if time.clock() - lastSent > sendFreq:
 	#if robotReadyForNewCommand:
-	turn, move = decideNextMove3()
+	turn, move = decideNextMove()
 	#package = "1" + "\t" + str(random.randint(1,100)) + "\n"
 	package = "2" + "\t" + str(turn) + "\t" + str(move) + "\n"
 	#package = "2" + "\t" + str(defaultTurn) + "\t" + str(defaultMove) + "\n"

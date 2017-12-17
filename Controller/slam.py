@@ -3,7 +3,7 @@ import numpy as np
 # in general, where you see the number 2, it relates to the number of dimensions in each states
 # i.e. x and y
 # index is x1, y1, x2, y2, Lx1, Ly1, Lx2, Ly2, L...
-# list of landmarks may grow but will never hold more than 2 positions
+# list of landmarks may grow but there will never be more than 2 robot positions held
 
 # initial state
 initialised = False
@@ -14,8 +14,8 @@ numLandmarks = 0
 idxOfFirstLandmark = 4
 
 # parameters
-motionNoise = 1.0
-measurementNoise = 1.0
+motionNoise = 50.0
+measurementNoise = 10.0
 
 
 def expand(m, newDimRows, newDimCols, placeOldRows, placeOldCols = []):
