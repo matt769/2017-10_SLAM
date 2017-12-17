@@ -1,9 +1,7 @@
-
-
-#include <Wire.h>
-#include <VL53L0X.h>  // laser range finder
-#include <Servo.h>
-#include <PID_v1.h>
+#include <Wire.h> // Standard I2C communication library
+#include <VL53L0X.h>  // laser range finder // https://github.com/pololu/vl53l0x-arduino
+#include <Servo.h>    // Standard Servo library
+#include <PID_v1.h> // https://github.com/br3ttb/Arduino-PID-Library
 
 VL53L0X rangeFinder;
 Servo servo;
@@ -11,8 +9,7 @@ const byte pinServo = 22;
 
 // for incoming comms
 bool newDataReceived = false;
-byte newCommandType;  // what type of data has been sent
-//  expecting 1, 2, 3
+byte newCommandType;  // what type of data has been sent  //  expecting 1, 2, 3
 const char charArrayTerminator = '\0';
 const byte rxBufferSize = 15; // longest expected atm is 11 (+string termination char)
 static char rxBuffer[rxBufferSize];
@@ -236,7 +233,6 @@ void readSerialToBuffer() {
 
 // general function that will perform basic sense check on the data
 // determine what command type it is, and send to a command specific parser
-// should this also split into parts? prob yes
 void parseData() {
   // ignore command type for a moment
   const byte elementBufferSize = 6;
@@ -285,54 +281,42 @@ void parseData() {
 }
 
 
-// THERE IS NO ERROR CHECKING I.E. DO I GET THE RIGHT NUMBER OF NUMBERS?
+// standard command to move a set distance and read the sensors
 void processCommandType1 (char* element) {
-  // standard command to move a set distance and read the sensors
-  // this will only be called once
-  // at the moment, not even bothering to check the value of the command
-  //  Serial.println("xxx");
   nextTurnAngle = defaultTurnAngle;
   nextMoveForward = defaultMoveForward;
   moveRequestReceived = true;
 }
 
-// THERE IS NO ERROR CHECKING I.E. DO I GET THE RIGHT NUMBER OF NUMBERS?
+// usual command will be to turn and move a specific distance
 void processCommandType2 (char* element) {
-  // this will be called multiple times
-  // required turn angle, required distance forward
-  static byte variableCounter = 0;
-  const byte variableMax = 2; // expecting a maximum of 2 values
-  //  Serial.println("I am here");
+  static byte variableCounter = 0;  // expecting a maximum of 2 values
   switch (variableCounter) {
     case 0: // first variable, turn angle
       nextTurnAngle = atof(element);
       variableCounter++;
-      //      Serial.println(nextTurnAngle);
       break;
-    case 1: // first variable, move distance
+    case 1: // second variable, move distance
       nextMoveForward = atof(element);
-      //      Serial.println(nextMoveForward);
       variableCounter = 0;
       moveRequestReceived = true; // that's everything done, so flag that we have a new move request ready to act upon
       break;
   }
 }
 
-// THERE IS NO ERROR CHECKING I.E. DO I GET THE RIGHT NUMBER OF NUMBERS?
 void processCommandType3 (char* elementBuffer) {
   // not yet defined
 }
-
 
 
 //////////////////////////////////////////////////////
 // FOR SENDING ///////////////////////////////////////
 //////////////////////////////////////////////////////
 
+// to Bluetooth module
 void sendMotionData() {
   static int inc = 0;
   tm = millis();
-  // to BT module
   Serial3.print('1'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
@@ -342,11 +326,9 @@ void sendMotionData() {
   inc += 1;
 }
 
-
 void sendSensorData() {
   static int inc = 0;
   tm = millis();
-
   // to serial monitor
   //  Serial.print(tm); Serial.print('\t');
   //  Serial.print(inc); Serial.print('\t');
@@ -365,7 +347,6 @@ void sendSensorData() {
     if (i != (numberOfReadings - 1)) Serial3.print('\t');
   }
   Serial3.print('\n');
-
   inc += 1;
 }
 
@@ -377,9 +358,7 @@ void setupServo() {
   servo.write(10);
   servo.attach(pinServo);
   for (byte i = 0; i < numberOfReadings; i++) {
-    //    rangeAngles[i] = 10 + 10 * i;
     rangeAngles[i] = i + minAngle;
-    //    Serial.println(rangeAngles[i]);
   }
 }
 
@@ -419,7 +398,6 @@ void setupMotorsAndEncoders() {
 }
 
 void countLeftEncoder() {
-  //  leftEncoderCounter++;
   byte dir = bitRead(PINC, 6);
   if (dir == 1) {
     leftEncoderCounter++;
@@ -430,7 +408,6 @@ void countLeftEncoder() {
 }
 
 void countRightEncoder() {
-  //  rightEncoderCounter++;
   byte dir = bitRead(PIND, 7);
   if (dir == 0) {
     rightEncoderCounter++;
@@ -440,18 +417,11 @@ void countRightEncoder() {
   }
 }
 
-
 void prepareForTurn() {
-  if (nextTurnAngle == 0.0) {
-    leftPWMBase = 0;
-    rightPWMBase = 0;
-  }
-  else {
     leftPWMBase = baseSpeedPWM;
     rightPWMBase = baseSpeedPWM;
     leftSpeedSetpoint = baseTurnSpeed;
     rightSpeedSetpoint = baseTurnSpeed;
-
     if (nextTurnAngle > 0) {
       digitalWrite(pinLeftMotorDirection, HIGH);   // anti-clockwise
       digitalWrite(pinRightMotorDirection, LOW);
@@ -460,7 +430,6 @@ void prepareForTurn() {
       digitalWrite(pinLeftMotorDirection, LOW);   // clockwise
       digitalWrite(pinRightMotorDirection, HIGH);
     }
-  }
 }
 
 void turnRoutine() {
@@ -472,7 +441,8 @@ void turnRoutine() {
   while (millis() - timeoutStart  < motorTimeout) {
     savePreviousEncoderCounts();
     copyLatestEncoderCounts();
-    if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks) || abs(rightEncoderCounterCopy) > abs(turnTargetTicks)) { // need to account for negative
+    // quick/rough check to see if we have moved enough
+    if (abs(leftEncoderCounterCopy) > abs(turnTargetTicks) || abs(rightEncoderCounterCopy) > abs(turnTargetTicks)) {
       break;
     }
     calculateSpeed();
@@ -498,13 +468,14 @@ void forwardRoutine() {
   while (millis() - timeoutStart  < motorTimeout) {
     savePreviousEncoderCounts();
     copyLatestEncoderCounts();
+    // quick/rough check to see if we have moved enough
     if (abs(leftEncoderCounterCopy) > abs(distanceTargetTicks) || abs(rightEncoderCounterCopy) > abs(distanceTargetTicks)) {
       break;
     }
     calculateSpeed();
     leftSpeedPID.Compute();
     rightSpeedPID.Compute();
-    motorsForward();  // to update the motors
+    motorsForward();  // update motors
     accumulateMovement();
 
   }
@@ -516,12 +487,7 @@ void forwardRoutine() {
 
 }
 
-void printCounters() {
-  cli();
-  Serial.print(leftEncoderCounter); Serial.print('\t');
-  Serial.print(rightEncoderCounter); Serial.print('\n');
-  sei();
-}
+
 
 void resetCounters() {
   cli();
@@ -535,8 +501,7 @@ void resetCounters() {
 }
 
 void motorsTurn() {
-  // direction has already been set
-  // PID is only controlling absolute speed
+  // direction has already been set, PID is only controlling absolute speed
   leftPWM = leftPWMBase + (int)leftPWMOutput;
   rightPWM = rightPWMBase + (int)rightPWMOutput;
   analogWrite(pinLeftMotorPWM, leftPWM);
@@ -559,66 +524,9 @@ void stopMove() {
 
 void setTargets() {
   distanceTargetTicks = long((float)nextMoveForward / distancePerTick);
-  // target for the LEFT WHEEL
-  // this is the absolute distance the left wheel will need to travel (assuming right wheel move oppositely) to acheive the desired angle
+  // this is the absolute distance the LEFT wheel will need to travel (assuming right wheel moves oppositely) to acheive the desired angle
   float wheelDistanceToTravel = (nextTurnAngle / (2 * PI) ) * turningCircleCircumference;
   turnTargetTicks = (long)(wheelDistanceToTravel / distancePerTick);
-}
-
-void calculateTurn() {
-  // for the moment assume that motors have moved the exact same (but opposite) distance
-  cli();
-  leftEncoderCounterCopy = leftEncoderCounter;
-  rightEncoderCounterCopy = rightEncoderCounter;
-  sei();
-  float turnDistance = (float)leftEncoderCounterCopy * distancePerTick;
-  // (turnDistance / turningCircleCircumference) gives the proportion of the full turning circle circumference that the wheel has travelled
-  angleTurned = (turnDistance / turningCircleCircumference) * 2 * PI;
-  Serial.print(leftEncoderCounterCopy); Serial.println('\t');
-  Serial.print(rightEncoderCounterCopy); Serial.println('\t');
-  Serial.print(distancePerTick); Serial.println('\t');
-  Serial.print(turnDistance); Serial.println('\t');
-  Serial.println(turningCircleCircumference); Serial.println('\t');
-  Serial.println(angleTurned); Serial.println('\n');
-}
-
-void calculateDistance() {
-  // copy encoder values and reset
-  // turn off interupts while doing so (the robot should not be moving at this point)
-  cli();
-  leftEncoderCounterCopy = leftEncoderCounter;
-  rightEncoderCounterCopy = rightEncoderCounter;
-  sei();
-  //  Serial.print(leftEncoderCounterCopy);Serial.print('\t');
-  //  Serial.print(rightEncoderCounterCopy);Serial.print('\n');
-  // for the moment, assume that it has travelled in perfectly straight line
-  // in which case the encoder counts will be the same
-  distanceMoved = (float)leftEncoderCounterCopy * distancePerTick;
-}
-
-
-void calculateSpeedOLD() {
-  // units of speed are ticks per millisecond
-  speedCalcInterval = millis() - speedCalcLast;
-  if (speedCalcInterval >= 10) {
-    // copy encoder values and reset
-    cli();
-    leftEncoderCounterCopy = leftEncoderCounter;
-    rightEncoderCounterCopy = rightEncoderCounter;
-    sei();
-    leftSpeedMeasured = (leftEncoderCounterCopy - leftTicksLast) / (float)speedCalcInterval;
-    rightSpeedMeasured = (rightEncoderCounterCopy - rightTicksLast) / (float)speedCalcInterval;
-    leftSpeedAbsolute = abs(leftSpeedMeasured);
-    rightSpeedAbsolute = abs(rightSpeedMeasured);
-    //    Serial.print(leftEncoderCounterCopy); Serial.print('\t');
-    //    Serial.print(rightEncoderCounterCopy); Serial.print('\t');
-    speedCalcLast += 10;
-    //    Serial.print(leftSpeedAbsolute); Serial.print('\t');
-    //    Serial.print(rightSpeedAbsolute); Serial.print('\n');
-    accumulateMovement(); // TEMPORARILY HERE
-    leftTicksLast = leftEncoderCounterCopy;
-    rightTicksLast = rightEncoderCounterCopy;
-  }
 }
 
 void calculateSpeed() {
@@ -627,7 +535,6 @@ void calculateSpeed() {
   speedCalcInterval = now - speedCalcLast;
   leftSpeedMeasured = (leftEncoderCounterCopy - leftTicksLast) / (float)speedCalcInterval;
   rightSpeedMeasured = (rightEncoderCounterCopy - rightTicksLast) / (float)speedCalcInterval;
-  // for PID - could have in forwardRoutine after checking that the PID will actually update
   leftSpeedAbsolute = abs(leftSpeedMeasured);
   rightSpeedAbsolute = abs(rightSpeedMeasured);
   speedCalcLast = now;
@@ -640,35 +547,27 @@ void copyLatestEncoderCounts() {
   sei();
 }
 
-// I don't like the name of this
 void savePreviousEncoderCounts() {
   leftTicksLast = leftEncoderCounterCopy;
   rightTicksLast = rightEncoderCounterCopy;
 }
 
-
-// I have to calculate the speed anyway (to use in the PID controller)
-// so reuse those numbers
+// I have to calculate the speed anyway (to use in the PID controller) so reuse those numbers
 void accumulateMovement() {
-
   Dl = (float)(leftEncoderCounterCopy - leftTicksLast) * distancePerTick;
   Dr = (float)(rightEncoderCounterCopy - rightTicksLast) * distancePerTick;
   Dc = (Dl + Dr) / 2.0;
   dTheta = (Dr - Dl) / wheelBase;
-  Serial.println(dTheta,6);
-
   x += Dc * cos(theta);
   y += Dc * sin(theta);
-  //  Serial.println(theta);
   theta += dTheta;
-  //  Serial.println("x");
 }
 
 
 void calcOverallMovement() {
   // final heading is based on how much it turned overall
-  // distance is just based on end point (don't care about path)
   angleTurned = fmod(theta, TWO_PI);
+  // distance is just based on end point (don't care about path)
   distanceMoved = sqrt(x * x + y * y);  // in millimetres
 }
 
@@ -679,6 +578,14 @@ void clearMovementAccumulators() {
 }
 
 
+// FOR DEBUGGING ////////////////////////////////////////
+
+void printCounters() {
+  cli();
+  Serial.print(leftEncoderCounter); Serial.print('\t');
+  Serial.print(rightEncoderCounter); Serial.print('\n');
+  sei();
+}
 
 
 
