@@ -13,7 +13,7 @@ from manageLandmarks import *
 from slam import *
 
 # Connection settings
-port = 'COM7'
+port = 'COM6'
 baudrate = 115200
 timeoutNum = 0.2
 print "Settings can be configured in .py file"
@@ -261,30 +261,29 @@ def createMeasurementsForSlam(sensedLandmarks):
 ######################################
 
 def updateHeading(sensedLandmarks):
-	if len(sensedLandmarks) > 0:
-		count = 0.0
-		calculatedHeading = 0.0
-		vx = 0
-		vy = 0
-		for sensorIdx, landmarkIdx in sensedLandmarks:
-			#print "calculate heading"
-			# landmark is at global angle...
-			#print globalPosition, landmarksInUse[landmarkIdx]
-			dx = landmarksInUse[landmarkIdx][0][0] - globalPosition[0]
-			dy = landmarksInUse[landmarkIdx][0][1] - globalPosition[1]
-			atGlobalAngle = math.atan2(dy,dx)
-			atLocalAngle = readingAnglesRadians[sensorIdx]
-			# therefore robot heading is...
-			calculatedHeading = atGlobalAngle - atLocalAngle
-			#print atGlobalAngle, atLocalAngle,calculatedHeading
-			# accumulate vectors
-			vx += math.cos(calculatedHeading)
-			vy += math.sin(calculatedHeading)
-			count += 1
-		vx /= count
-		vy /= count
-		averageAngle = math.atan2(vy,vx)
-		print "calculated heading:", averageAngle
+	count = 0.0
+	calculatedHeading = 0.0
+	vx = 0
+	vy = 0
+	for sensorIdx, landmarkIdx in sensedLandmarks:
+		#print "calculate heading"
+		# landmark is at global angle...
+		#print globalPosition, landmarksInUse[landmarkIdx]
+		dx = landmarksInUse[landmarkIdx][0][0] - globalPosition[0]
+		dy = landmarksInUse[landmarkIdx][0][1] - globalPosition[1]
+		atGlobalAngle = math.atan2(dy,dx)
+		atLocalAngle = readingAnglesRadians[sensorIdx]
+		# therefore robot heading is...
+		calculatedHeading = atGlobalAngle - atLocalAngle
+		#print atGlobalAngle, atLocalAngle,calculatedHeading
+		# accumulate vectors
+		vx += math.cos(calculatedHeading)
+		vy += math.sin(calculatedHeading)
+		count += 1
+	vx /= count
+	vy /= count
+	averageAngle = math.atan2(vy,vx)
+	print "calculated heading:", averageAngle
 	return averageAngle
 
 def updateLandmarkPositions(landmarkPositions):
@@ -411,7 +410,8 @@ while True:
 		# will need to record their relationship to landmarks
 		
 		# Update heading based on updated position and angle/distance to known landmark
-		globalHeading = updateHeading(sensedLandmarks)
+		if len(sensedLandmarks) > 0:
+			globalHeading = updateHeading(sensedLandmarks)
 		
 		robotResponseReceived = False
 		needNewUserInput = True
