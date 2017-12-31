@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from msvcrt import getch
 
 # Supporting functions
-from findingCorners import *
-from manageLandmarks import *
-from slam import *
+import findingCorners
+import manageLandmarks
+import slam
 
 # Connection settings
 port = 'COM6'
@@ -218,7 +218,7 @@ def processNewSensorData():
 	plt.axis([chartMin,chartMax,chartMin,chartMax])
 	plt.pause(0.001)
 	# check for corner and show if found
-	cornerFound, cornerPositions, cornerPositionsIdx = getCorners(readingPositions,sensorReadings)
+	cornerFound, cornerPositions, cornerPositionsIdx = findingCorners.getCorners(readingPositions,sensorReadings)
 	#print cornerFound, cornerPositions
 	for corner in cornerPositions:
 		plt.plot(corner[0],corner[1],'r.')	# show corner if found
@@ -382,7 +382,7 @@ while True:
 		processNewMotionData()
 		plotRobotPositionAfterMotion()	# plot estimated position after movement
 		newLandmarkCandidates, newLandmarkCandidatesIdx  = processNewSensorData()
-		sensedLandmarks = processAllLandmarks(landmarksInUse, landmarksPotential, newLandmarkCandidates, newLandmarkCandidatesIdx)
+		sensedLandmarks = manageLandmarks.processAllLandmarks(landmarksInUse, landmarksPotential, newLandmarkCandidates, newLandmarkCandidatesIdx)
 		# landmarksInUse and landmarksPotential are also updated
 		# TO DO - MOVE BELOW TO PLOT FUNCTION
 		print "sensedLandmarks", sensedLandmarks
@@ -394,7 +394,7 @@ while True:
 		# SLAM
 		motionForSlam = (dgx,dgy)
 		measurementsForSlam = createMeasurementsForSlam(sensedLandmarks)
-		robotPosition, landmarkPositions = runSlam(motionForSlam,measurementsForSlam)
+		robotPosition, landmarkPositions = slam.runSlam(motionForSlam,measurementsForSlam)
 		print "robotPosition:\n", robotPosition
 		print "landmarkPositions:\n", landmarkPositions
 		globalPosition = (robotPosition.item(0), robotPosition.item(1))	# update robot position
