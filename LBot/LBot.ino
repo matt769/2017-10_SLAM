@@ -65,26 +65,13 @@ void loop() {
     if ( abs(nextTurnAngle) > 0.01) {
       turnRoutine();
     }
-//    Serial.print(F("Turn/Move:")); Serial.print('\t');
-//    Serial.print(angleTurned); Serial.print('\t');
-//    Serial.print(distanceMoved); Serial.print('\n');
-//    Serial.print("Total"); Serial.print('\t');
-//    Serial.print(theta); Serial.print('\t');
-//    Serial.print(x); Serial.print('\t');
-//    Serial.print(y); Serial.print('\n');
+
     delay(500);
     resetCounters();
     if (abs(nextMoveForward) > 0.01) {
       forwardRoutine();
     }
-//    Serial.print(F("Turn/Move:")); Serial.print('\t');
-//    Serial.print(angleTurned); Serial.print('\t');
-//    Serial.print(distanceMoved); Serial.print('\n');
-//    Serial.print("Total"); Serial.print('\t');
-//    Serial.print(theta); Serial.print('\t');
-//    Serial.print(x); Serial.print('\t');
-//    Serial.print(y); Serial.print('\n');
-//    Serial.print('\n');
+
     delay(500);
     calcOverallMovement();
     sendMotionData();
@@ -102,14 +89,11 @@ void loop() {
 //////////////////////////////////////////////////////
 
 void takeRangeReadings() {
-  //  byte counter = 0;
   for (byte i = 0; i < numberOfReadings; i++) {
     servo.write(rangeAngles[i]);
     delay(servoDelay);
     rangeReadings[i] = rangeFinder.readRangeSingleMillimeters();
     if (rangeReadings[i] > 2000) rangeReadings[i] = 0; // above ~2000 the sensor will return ~8000
-    //    Serial.println(counter);
-    //    counter++;
   }
   servo.write(minAngle);  // ready for next time
 }
@@ -126,7 +110,6 @@ void readSerialToBuffer() {
   // read anything that's available from the BT module
   if (Serial3.available() > 0) {
     inputChar = Serial3.read();
-    //    Serial.println(inputChar);
   }
   else return;  // ** NOTE RETURN **
   // if this is the beginning of a new transmission
@@ -156,7 +139,6 @@ void parseData() {
   const char delimiter = '\t';
   char elementBuffer[elementBufferSize];
   byte elementIdx = 0;
-  //  bool elementComplete = false;
   int output;
   bool firstElement = true;
   for (byte rxIdx = 0; rxIdx < rxBufferSize; rxIdx++) {
@@ -171,13 +153,13 @@ void parseData() {
       // if not the first element, then send to the command specific parser
       else {
         switch (newCommandType) {
-          case 1: // standard input
+          case 1:
             processCommandType1(elementBuffer);
             break;
-          case 2: // standard input
+          case 2:
             processCommandType2(elementBuffer);
             break;
-          case 3: // standard input
+          case 3:
             processCommandType3(elementBuffer);
             break;
         }
@@ -228,8 +210,7 @@ void processCommandType3 (char* elementBuffer) {
 // FOR SENDING ///////////////////////////////////////
 //////////////////////////////////////////////////////
 
-// to Bluetooth module
-void sendMotionData() {
+void sendMotionData() {   // to BT module
   static int inc = 0;
   tm = millis();
   Serial3.print('1'); Serial3.print('\t');
@@ -241,19 +222,9 @@ void sendMotionData() {
   inc += 1;
 }
 
-void sendSensorData() {
+void sendSensorData() {   // to BT module
   static int inc = 0;
   tm = millis();
-  // to serial monitor
-  //  Serial.print(tm); Serial.print('\t');
-  //  Serial.print(inc); Serial.print('\t');
-  //  for (int i = 0; i < numberOfReadings; i++) {
-  //    Serial.print(rangeReadings[i]);
-  //    if (i != (numberOfReadings - 1)) Serial.print('\t');
-  //  }
-  //  Serial.print('\n');
-
-  // to BT module
   Serial3.print('2'); Serial3.print('\t');
   Serial3.print(tm); Serial3.print('\t');
   Serial3.print(inc); Serial3.print('\t');
