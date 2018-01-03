@@ -136,5 +136,5 @@ class Slam():
 		self.calculateMu()
 		return self.mu[:2], self.mu[2:]	# robot position, landmarks
 
-# add method to return data is more convenient form
+# add method to return data in more convenient form than numpy matrix
 
