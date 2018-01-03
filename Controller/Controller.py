@@ -10,7 +10,7 @@ from msvcrt import getch
 # Supporting functions
 import findingCorners
 import manageLandmarks
-import slam
+import SLAM
 
 # Connection settings
 port = 'COM6'
@@ -81,6 +81,10 @@ sensorReadings = [0 for x in range(len(readingAnglesDegrees))]
 sensedPositions = list()
 allSensorReadings = list()
 positionHistory = list()
+
+# noise
+motionNoise = 50.0
+measurementNoise = 10.0
 
 # communication package types
 MOTION = 1
@@ -341,6 +345,7 @@ def replot():
 ######################################
 print "Starting position:", globalPosition, globalHeading
 
+slam = SLAM.Slam(motionNoise, measurementNoise)	# try and tidy file/class name
 needNewUserInput = True
 
 while True:
@@ -394,7 +399,7 @@ while True:
 		# SLAM
 		motionForSlam = (dgx,dgy)
 		measurementsForSlam = createMeasurementsForSlam(sensedLandmarks)
-		robotPosition, landmarkPositions = slam.runSlam(motionForSlam,measurementsForSlam)
+		robotPosition, landmarkPositions = slam.run(motionForSlam,measurementsForSlam)
 		print "robotPosition:\n", robotPosition
 		print "landmarkPositions:\n", landmarkPositions
 		globalPosition = (robotPosition.item(0), robotPosition.item(1))	# update robot position
