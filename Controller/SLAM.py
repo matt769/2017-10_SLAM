@@ -51,13 +51,13 @@ class Slam():
 
 	def reduce(self):
 		dimRows, dimCols = self.omega.shape
-		self.omegaTmp = self.omega[self.dims:,self.dims:]	# takes all but the first dims number of rows/cols
-		self.xiTmp = self.xi[self.dims:]	# takes all but the first dims number of rows
+		omegaTmp = self.omega[self.dims:,self.dims:]	# takes all but the first dims number of rows/cols
+		xiTmp = self.xi[self.dims:]	# takes all but the first dims number of rows
 		A = self.omega[:self.dims,self.dims:]
 		B = self.omega[:self.dims,:self.dims]
 		C = self.xi[:self.dims]
-		self.omega = self.omegaTmp - (A.T * B.I * A)
-		self.xi = self.xiTmp - (A.T * B.I * C)
+		self.omega = omegaTmp - (A.T * B.I * A)
+		self.xi = xiTmp - (A.T * B.I * C)
 		return
 
 	def expandMotion(self):
